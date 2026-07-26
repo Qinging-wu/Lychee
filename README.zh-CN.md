@@ -1,4 +1,4 @@
-# Lychee Lite
+# Lychee
 
 [English](./README.md) | 简体中文
 
@@ -7,6 +7,12 @@
 ![screenshot](Assets/screenshot.png)
 
 适合不想 alt-tab 切任务管理器看系统状态的用户——远程办公盯 VPN 状态、开发者跑长任务、或者单纯觉得完整系统监视器太重的人。
+
+## 快速开始
+
+从 [Releases](https://github.com/Qinging-wu/Lychee/releases) 下载 `Lychee.exe`，双击运行。无需安装，无需管理员权限。
+
+关闭方式：点击面板上的 **✕**，或右键托盘图标 → 退出。
 
 ## 功能
 

@@ -1,4 +1,4 @@
-# Lychee Lite
+# Lychee
 
 English | [简体中文](./README.zh-CN.md)
 
@@ -7,6 +7,12 @@ A tiny always-on-top floating ball for Windows that shows CPU, memory, network s
 ![screenshot](Assets/screenshot.png)
 
 Good for anyone who wants system stats visible without alt-tabbing to Task Manager — remote workers keeping an eye on VPN status, developers running long builds, or anyone who finds full system monitors too heavy.
+
+## Quick start
+
+Download `Lychee.exe` from [Releases](https://github.com/Qinging-wu/Lychee/releases), double-click to run. That's it — no installer, no admin rights needed.
+
+To close, click **✕** on the panel or right-click the tray icon → Quit.
 
 ## Features
 

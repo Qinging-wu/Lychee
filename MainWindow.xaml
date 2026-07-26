@@ -1,0 +1,104 @@
+<Window x:Class="Lychee.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Lychee"
+        Height="440" Width="300"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        ResizeMode="NoResize"
+        WindowStartupLocation="Manual"
+        SourceInitialized="Window_SourceInitialized"
+        Deactivated="Window_Deactivated">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+    <Canvas x:Name="RootCanvas" ClipToBounds="True">
+        <!-- Info panel (position set from code) -->
+        <Border x:Name="PanelBorder" Canvas.Left="0" Canvas.Top="4" Width="240"
+                Background="#E61E1E2E" CornerRadius="12" Visibility="Collapsed">
+            <DockPanel LastChildFill="True" Margin="6">
+                <Border DockPanel.Dock="Top" Background="#33FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,0,0,6">
+                    <Grid>
+                        <TextBlock Text="Lychee" Foreground="#FFB5DE56" FontWeight="Bold" FontSize="13"
+                                   VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button x:Name="PinButton" Click="Pin_Click" ToolTip="Pin / Unpin"
+                                    Width="24" Height="24" Background="Transparent" BorderThickness="0"
+                                    FontSize="14" Foreground="White" Cursor="Hand">📌</Button>
+                            <Button x:Name="SettingsButton" Click="Settings_Click" ToolTip="Settings"
+                                    Width="24" Height="24" Background="Transparent" BorderThickness="0"
+                                    FontSize="14" Foreground="White" Cursor="Hand">⚙</Button>
+                            <Button x:Name="HideButton" Click="Hide_Click" ToolTip="Collapse"
+                                    Width="24" Height="24" Background="Transparent" BorderThickness="0"
+                                    FontSize="18" Foreground="White" Cursor="Hand">›</Button>
+                            <Button x:Name="QuitButton" Click="Quit_Click" ToolTip="Quit Lychee"
+                                    Width="24" Height="24" Background="Transparent" BorderThickness="0"
+                                    FontSize="14" FontWeight="Bold" Foreground="#FFEB5757" Cursor="Hand">✕</Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
+                    <ItemsControl x:Name="ModuleList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#22FFFFFF" CornerRadius="6" Padding="8,6" Margin="0,3"
+                                        ToolTip="{Binding Detail}">
+                                    <DockPanel>
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock Text="{Binding Icon}" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                                           Foreground="#FFF85556" DockPanel.Dock="Left" Margin="0,0,8,0"/>
+                                                <TextBlock Text="{Binding DisplayName}" Foreground="#FFCCCCCC" FontSize="11"/>
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding CurrentValue}" Foreground="White" FontSize="13"
+                                                       TextWrapping="Wrap" Margin="0,3,0,0" LineHeight="18"/>
+                                            <TextBlock Text="{Binding Detail}" Foreground="#FF8F8F9F" FontSize="10"
+                                                       TextWrapping="Wrap" Margin="0,4,0,0" LineHeight="14">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <Trigger Property="Text" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </Trigger>
+                                                            <Trigger Property="Text" Value="">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- Floating ball (position set from code) -->
+        <Ellipse x:Name="BallEllipse" Canvas.Left="4" Canvas.Top="4" Width="48" Height="48"
+                 RenderTransformOrigin="0.5,0.5"
+                 MouseLeftButtonDown="Ball_MouseLeftButtonDown"
+                 MouseLeftButtonUp="Ball_MouseLeftButtonUp"
+                 MouseMove="Ball_MouseMove"
+                 Cursor="SizeAll">
+            <Ellipse.RenderTransform>
+                <ScaleTransform x:Name="BallScale" ScaleX="1" ScaleY="1"/>
+            </Ellipse.RenderTransform>
+            <Ellipse.Effect>
+                <DropShadowEffect x:Name="BallShadow" Color="#5B8CFF" BlurRadius="14" ShadowDepth="0" Opacity="0.6"/>
+            </Ellipse.Effect>
+            <Ellipse.Fill>
+                <ImageBrush ImageSource="Assets/icon.png" Stretch="UniformToFill"/>
+            </Ellipse.Fill>
+        </Ellipse>
+    </Canvas>
+</Window>

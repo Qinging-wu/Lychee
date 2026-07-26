@@ -1,4 +1,4 @@
-# Lychee
+# 🍈 Lychee
 
 English | [简体中文](./README.zh-CN.md)
 
@@ -8,37 +8,37 @@ A tiny always-on-top floating ball for Windows that shows CPU, memory, network s
 
 Good for anyone who wants system stats visible without alt-tabbing to Task Manager — remote workers keeping an eye on VPN status, developers running long builds, or anyone who finds full system monitors too heavy.
 
-## Quick start
+## 🚀 Quick start
 
 Download `Lychee.exe` from [Releases](https://github.com/Qinging-wu/Lychee/releases), double-click to run. That's it — no installer, no admin rights needed.
 
 To close, click **✕** on the panel or right-click the tray icon → Quit.
 
-## Features
+## ✨ Features
 
-- **Date & time** — refreshes every second
-- **Network speed** — auto-selects active adapter, samples up/down rate every second
-- **Public IP / location** — queries ip-api.com every 20s, shows a toast + tray balloon when the IP changes (optional)
-- **CPU usage** — per-core utilization via `GetSystemTimes`, refreshes every second
-- **Memory** — RAM and page file stats via `GlobalMemoryStatusEx`
-- **Network latency** — pings 223.5.5.5 / 1.1.1.1 / 8.8.8.8 every 5s, reports the best RTT
+- **📅 Date & time** — refreshes every second
+- **🌐 Network speed** — auto-selects active adapter, samples up/down rate every second
+- **📍 Public IP / location** — queries ip-api.com every 20s, shows a toast + tray balloon when the IP changes (optional)
+- **💻 CPU usage** — per-core utilization via `GetSystemTimes`, refreshes every second
+- **🧠 Memory** — RAM and page file stats via `GlobalMemoryStatusEx`
+- **⏱️ Network latency** — pings 223.5.5.5 / 1.1.1.1 / 8.8.8.8 every 5s, reports the best RTT
 
 Each module can be toggled on/off individually in Settings.
 
-## Usage
+## 🖱️ Usage
 
-- **Hover** the ball to expand the panel; move away to collapse
-- **Drag** the ball anywhere across monitors — the panel flips direction based on screen position
-- **Double-click** the ball to pin/unpin the panel
-- **Pin (📌)** — keep the panel open even when the mouse leaves
-- **Settings (⚙)** — open the settings window
-- **Collapse (›)** — force-close the panel
-- **Quit (✕)** — exit Lychee
-- **Tray icon** — right-click for Show/Hide, Settings, Quit; double-click to toggle visibility
+- **👆 Hover** the ball to expand the panel; move away to collapse
+- **✋ Drag** the ball anywhere across monitors — the panel flips direction based on screen position
+- **👆👆 Double-click** the ball to pin/unpin the panel
+- **📌 Pin** — keep the panel open even when the mouse leaves
+- **⚙️ Settings** — open the settings window
+- **◀️ Collapse** — force-close the panel
+- **❌ Quit** — exit Lychee
+- **📋 Tray icon** — right-click for Show/Hide, Settings, Quit; double-click to toggle visibility
 
 When the public IP changes (possible VPN drop or network switch), a red toast pops up in the bottom-right corner with a tray balloon showing old and new IPs.
 
-## Build
+## 🔧 Build
 
 Requires .NET SDK 8.0+ with WPF and WinForms workloads.
 
@@ -49,7 +49,7 @@ dotnet publish -c Release -r win-x64
 
 Output: `bin\Release\net8.0-windows\win-x64\publish\Lychee.exe` (self-contained, double-click to run).
 
-## Architecture
+## 🏗️ Architecture
 
 ```
 Lychee/
@@ -71,7 +71,7 @@ Lychee/
 └── Lychee.csproj
 ```
 
-### Module interface
+### 🔌 Module interface
 
 ```csharp
 public interface IInfoModule : IDisposable
@@ -88,7 +88,7 @@ public interface IInfoModule : IDisposable
 }
 ```
 
-### Adding a module
+### 📦 Adding a module
 
 1. Inherit `InfoModuleBase`, implement `Start()` / `Stop()`, and set `CurrentValue` when data updates:
 
@@ -138,7 +138,7 @@ _moduleManager.RegisterModule(new WeatherModule());
 
 3. Rebuild. The module appears in the info panel and settings toggle list automatically — no UI changes needed.
 
-## Settings
+## ⚙️ Settings
 
 `%AppData%\Lychee\settings.json`
 
@@ -159,11 +159,11 @@ _moduleManager.RegisterModule(new WeatherModule());
 }
 ```
 
-## Known limitations
+## ⚠️ Known limitations
 
 - Some exclusive fullscreen games may still cover the ball despite topmost
 - Public IP may show as IP-only (no city/country) when the geo lookup returns empty
 
-## License
+## 📄 License
 
 MIT

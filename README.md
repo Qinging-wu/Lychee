@@ -10,7 +10,7 @@ Good for anyone who wants system stats visible without alt-tabbing to Task Manag
 
 ## 🚀 Quick start
 
-Download `Lychee.exe` from [Releases](https://github.com/Qinging-wu/Lychee/releases), double-click to run. That's it — no installer, no admin rights needed.
+Download `Lychee.exe` from [Releases](https://github.com/Qinging-wu/Lychee/releases), double-click to run. That's it — no installer, no admin rights needed. If the browser warns about the EXE, try the `Lychee-v*.zip` instead — it usually works.
 
 To close, click **✕** on the panel or right-click the tray icon → Quit.
 

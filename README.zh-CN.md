@@ -10,7 +10,7 @@
 
 ## 🚀 快速开始
 
-从 [Releases](https://github.com/Qinging-wu/Lychee/releases) 下载 `Lychee.exe`，双击运行。无需安装，无需管理员权限。
+从 [Releases](https://github.com/Qinging-wu/Lychee/releases) 下载 `Lychee.exe`，双击运行。无需安装，无需管理员权限。如果浏览器拦截 EXE 下载，可以尝试 `Lychee-v*.zip`，通常可以正常下载。
 
 关闭方式：点击面板上的 **✕**，或右键托盘图标 → 退出。
 

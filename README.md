@@ -28,6 +28,12 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 
 Each module can be toggled on/off individually in Settings.
 
+### What's new in v1.1.1
+
+| Change | Detail |
+|---|---|
+| 📁 Folder-based publish | Switched from single-file exe to folder publish to reduce antivirus false positives |
+
 ### What's new in v1.1.0
 
 | Change | Detail |

@@ -185,6 +185,7 @@ _moduleManager.RegisterModule(new WeatherModule());
 
 - 部分独占全屏游戏可能仍会盖住悬浮球
 - 归属地查询不可用时，公网 IP 可能仅显示数字本身（无城市/国家信息）
+- 部分杀毒软件可能将 Lychee.exe 误判为病毒，原因是使用了 P/Invoke、COM 互操作以及内置的 PresentMon 工具。源代码完全开源，可以自行审查和编译，或在杀软中添加排除项
 
 ## 📄 许可证
 

@@ -9,6 +9,7 @@ public sealed class AppSettings
     public bool AlertOnIpChange { get; set; } = true;
     public bool ShowTrayIcon { get; set; } = true;
     public int FloatingBallSize { get; set; } = 56;
+    public FrameMonitoringMode FrameMonitoringMode { get; set; } = FrameMonitoringMode.DesktopOutput;
     public Dictionary<string, bool> ModuleEnabled { get; set; } = new();
 }
 

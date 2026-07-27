@@ -68,6 +68,7 @@ public partial class MainWindow : Window
         _moduleManager.RegisterModule(new CpuModule());
         _moduleManager.RegisterModule(new MemoryModule());
         _moduleManager.RegisterModule(new LatencyModule());
+        _moduleManager.RegisterModule(new FpsModule(_settings, GetActiveDisplayDeviceName));
 
         if (_moduleManager.Get("public-ip") is PublicIpModule ipModule)
         {
@@ -177,6 +178,20 @@ public partial class MainWindow : Window
     private double GetBallScreenY()
     {
         return Top + Canvas.GetTop(BallEllipse);
+    }
+
+    private string? GetActiveDisplayDeviceName()
+    {
+        if (PresentationSource.FromVisual(this) is null)
+        {
+            return System.Windows.Forms.Screen.PrimaryScreen?.DeviceName;
+        }
+
+        var ballCenter = PointToScreen(new Point(
+            Canvas.GetLeft(BallEllipse) + BallSize / 2,
+            Canvas.GetTop(BallEllipse) + BallSize / 2));
+        return System.Windows.Forms.Screen.FromPoint(
+            new System.Drawing.Point((int)ballCenter.X, (int)ballCenter.Y)).DeviceName;
     }
 
     private void ExpandPanel(bool immediate = false)

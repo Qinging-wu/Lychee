@@ -13,6 +13,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -37,9 +38,33 @@
             </DockPanel>
         </Border>
 
-        <TextBlock Grid.Row="3" Text="Info Modules" Foreground="#FFCCCCCC" FontSize="12" Margin="0,8,0,6"/>
+        <Border Grid.Row="3" Background="#22FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Frame monitoring (Experimental)" Foreground="White" FontSize="13"/>
+                    <TextBlock Text="PresentMon runs only in application mode"
+                               Foreground="#FF888898" FontSize="10" Margin="0,2,8,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Width="142">
+                    <ComboBox x:Name="FrameModeComboBox" Height="28"
+                              SelectionChanged="FrameMode_Changed">
+                        <ComboBoxItem Content="Desktop output" Tag="DesktopOutput"/>
+                        <ComboBoxItem Content="Foreground app" Tag="ForegroundApplication"/>
+                    </ComboBox>
+                    <Button x:Name="RestartElevatedButton" Content="Restart as administrator"
+                            Click="RestartElevated_Click" Height="25" Margin="0,5,0,0"
+                            FontSize="10" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
 
-        <Border Grid.Row="4" Background="#22FFFFFF" CornerRadius="8" Padding="6">
+        <TextBlock Grid.Row="4" Text="Info Modules" Foreground="#FFCCCCCC" FontSize="12" Margin="0,8,0,6"/>
+
+        <Border Grid.Row="5" Background="#22FFFFFF" CornerRadius="8" Padding="6">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="ModuleToggleList">
                     <ItemsControl.ItemTemplate>
@@ -66,7 +91,7 @@
             </ScrollViewer>
         </Border>
 
-        <TextBlock Grid.Row="5" Text="Lychee - Config: %AppData%\Lychee\settings.json"
+        <TextBlock Grid.Row="6" Text="Lychee - Config: %AppData%\Lychee\settings.json"
                    Foreground="#888888" FontSize="10" Margin="0,12,0,0"/>
     </Grid>
 </Window>

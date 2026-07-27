@@ -22,8 +22,19 @@
 - **💻 CPU 使用率** — 通过 `GetSystemTimes` 采集全核利用率，每秒刷新
 - **🧠 内存** — 通过 `GlobalMemoryStatusEx` 获取 RAM 占用和页面文件统计
 - **⏱️ 网络延迟** — 每 5 秒 ping 223.5.5.5 / 1.1.1.1 / 8.8.8.8，取最优值
+- **🖼️ 帧性能**（v1.1.0 · 实验性）— 两种模式：
+  - *桌面输出* — 通过 `DwmGetCompositionTimingInfo` 采样 DWM 合成帧率，显示 FPS + 显示刷新率
+  - *前台应用* — 启动 PresentMon 2.5.1 采集进程级帧呈现，报告当前 FPS、60 秒平均、1% Low 和帧范围。需要**管理员权限**或加入 `Performance Log Users` 组
 
 每个模块都可以在设置中单独开关。
+
+### v1.1.0 更新内容
+
+| 变更 | 说明 |
+|---|---|
+| 🖼️ 帧性能（实验性） | 桌面 DWM 输出 + PresentMon 前台应用模式 |
+| ⚙️ 帧监控设置 | 桌面/应用模式切换 + 管理员提权提示 |
+| 🔧 PresentMon 集成 | 内置 PresentMon 2.5.1，ETW 会话管理 |
 
 ## 🖱️ 使用
 
@@ -65,10 +76,14 @@ Lychee/
 │   ├── PublicIpModule.cs
 │   ├── CpuModule.cs
 │   ├── MemoryModule.cs
-│   └── LatencyModule.cs
-├── MainWindow.xaml(.cs)        # 悬浮球 + 信息面板
-├── SettingsWindow.xaml(.cs)    # 设置窗口
-└── Lychee.csproj
+│   ├── LatencyModule.cs
+│   └── FpsModule.cs            # v1.1.0 · 实验性
+├── Core/
+│   ├── FrameMetrics.cs         # 帧监控类型与接口
+│   ├── DwmFrameMetricsSource.cs
+│   ├── PresentMonFrameMetricsSource.cs
+│   ├── ForegroundProcessProvider.cs
+│   └── ...
 ```
 
 ### 🔌 模块接口
@@ -154,7 +169,8 @@ _moduleManager.RegisterModule(new WeatherModule());
     "public-ip": true,
     "cpu": true,
     "memory": true,
-    "latency": true
+    "latency": true,
+    "fps": true
   }
 }
 ```

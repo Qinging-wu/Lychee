@@ -16,6 +16,18 @@
   <ItemGroup>
     <Resource Include="Assets\icon.png" />
     <EmbeddedResource Include="Assets\icon.ico" />
+    <Content Include="Tools\PresentMon-2.5.1-x64.exe">
+      <Link>PresentMon_x64.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <Content Include="Tools\PresentMon-LICENSE.txt">
+      <Link>PresentMon-LICENSE.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">

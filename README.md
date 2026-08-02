@@ -22,7 +22,7 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 - **💻 CPU usage** — per-core utilization via `GetSystemTimes`, refreshes every second
 - **🧠 Memory** — RAM and page file stats via `GlobalMemoryStatusEx`
 - **⏱️ Network latency** — pings 223.5.5.5 / 1.1.1.1 / 8.8.8.8 every 5s, reports the best RTT
-- **🖼️ Frame Performance** (v1.1.0 · Experimental) — two modes:
+- **🖼️ Frame Performance** (v1.1.0 ) — two modes:
   - *Desktop output* — samples DWM composition cadence via `DwmGetCompositionTimingInfo`, shows FPS + display refresh rate
   - *Foreground app* — launches PresentMon 2.5.1 to capture per-process frame presents, reports current FPS, 60s average, 1% low, and frame range. Requires **administrator privileges** or membership in `Performance Log Users` group
 

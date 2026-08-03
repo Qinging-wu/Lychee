@@ -32,7 +32,7 @@ Each module can be toggled on/off individually in Settings.
 
 | Change | Detail |
 |---|---|
-| 🎨 New app icon | Minor update — refreshed tray & exe icon, floating ball unchanged |
+| 🎨 New app icon | Minor update — refreshed tray & exe icon |
 
 ### What's new in v1.1.1
 

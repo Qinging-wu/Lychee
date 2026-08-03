@@ -22,19 +22,26 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 - **💻 CPU usage** — per-core utilization via `GetSystemTimes`, refreshes every second
 - **🧠 Memory** — RAM and page file stats via `GlobalMemoryStatusEx`
 - **⏱️ Network latency** — pings 223.5.5.5 / 1.1.1.1 / 8.8.8.8 every 5s, reports the best RTT
-- **🖼️ Frame Performance** (v1.1.0 ) — two modes:
+- **🖼️ Frame Performance** (v1.2.0) — two modes:
   - *Desktop output* — samples DWM composition cadence via `DwmGetCompositionTimingInfo`, shows FPS + display refresh rate
   - *Foreground app* — launches PresentMon 2.5.1 to capture per-process frame presents, reports current FPS, 60s average, 1% low, and frame range. Requires **administrator privileges** or membership in `Performance Log Users` group
 
 Each module can be toggled on/off individually in Settings.
 
-### 🖼️ Frame Performance (v1.1.0 · Experimental)
+### 🖼️ Frame Performance (v1.2.0)
 
 | Change | Detail |
 |---|---|
 | Desktop output | Samples DWM composition cadence, shows FPS + display refresh rate |
 | Foreground app mode | Bundled PresentMon 2.5.1 for per-process frame capture, reports FPS / 60s avg / 1% low / frame range |
 | Settings | Desktop/App mode switch + admin restart prompt |
+
+### What's new in v1.2.0
+
+| Change | Detail |
+|---|---|
+| 🛠️ Known issue fixes | Improved collector lifecycle, shutdown handling, process switching, and diagnostic logging |
+| 🖼️ Frame Performance | No longer experimental |
 
 Full history: [CHANGELOG](./CHANGELOG.md)
 
@@ -79,7 +86,7 @@ Lychee/
 │   ├── CpuModule.cs
 │   ├── MemoryModule.cs
 │   ├── LatencyModule.cs
-│   └── FpsModule.cs            # v1.1.0 · Experimental
+│   └── FpsModule.cs            # v1.2.0 · Frame Performance
 ├── Core/
 │   ├── FrameMetrics.cs         # Frame monitoring types & interfaces
 │   ├── DwmFrameMetricsSource.cs

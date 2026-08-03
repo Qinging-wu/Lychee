@@ -55,7 +55,8 @@ public sealed class LatencyModule : InfoModuleBase
                 {
                     using var ping = new Ping();
                     var reply = await ping.SendPingAsync(target, TimeoutMs);
-                    return (target, (long?)reply.RoundtripTime);
+                    var success = reply.Status == IPStatus.Success;
+                    return (target, success ? (long?)reply.RoundtripTime : null);
                 }
                 catch { return (target, (long?)null); }
             }).ToList();
@@ -93,7 +94,10 @@ public sealed class LatencyModule : InfoModuleBase
             }
         }
         catch (OperationCanceledException) { throw; }
-        catch { }
+        catch (Exception ex)
+        {
+            AppLog.Error("latency", ex);
+        }
     }
 
     public override void Stop()

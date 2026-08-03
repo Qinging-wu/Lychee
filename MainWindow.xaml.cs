@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private bool _isExpanded = false;
     private bool _isHoveringBall = false;
     private SettingsWindow? _settingsWindow;
+    private bool _shutdownStarted;
 
     private bool _isRightSide = true;
     private bool _isBottomSide = true;
@@ -481,9 +482,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ShutdownApp()
+    private async void ShutdownApp()
     {
-        _moduleManager.Dispose();
+        if (_shutdownStarted) return;
+        _shutdownStarted = true;
+        await _moduleManager.DisposeAsync();
         _tray.Dispose();
         Application.Current.Shutdown();
     }
@@ -572,8 +575,12 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        _moduleManager.Dispose();
-        _tray.Dispose();
+        if (!_shutdownStarted)
+        {
+            e.Cancel = true;
+            ShutdownApp();
+            return;
+        }
         base.OnClosing(e);
     }
 }

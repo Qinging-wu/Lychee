@@ -11,12 +11,22 @@ public sealed class FpsModule : InfoModuleBase
     private readonly ForegroundProcessProvider _foregroundProcessProvider;
     private readonly IFrameMetricsSource _desktopSource;
     private readonly IProcessFrameMetricsSource _processSource;
+    private readonly object _transitionSync = new();
     private System.Windows.Threading.DispatcherTimer? _timer;
+    private Task? _transitionTask;
+    private long _transitionVersion;
+    private FrameMonitoringMode _requestedMode;
+    private int? _requestedProcessId;
+    private bool _stopRequested;
     private FrameMonitoringMode? _activeMode;
     private ForegroundProcessInfo? _targetProcess;
+    private ForegroundProcessInfo? _candidateProcess;
+    private int _candidateSamples;
+    private int _activeProcessId;
+    private string? _transitionError;
 
     public override string Id => "fps";
-    public override string DisplayName => "Frame Performance (Experimental)";
+    public override string DisplayName => "Frame Performance";
     public override string Icon => "\uE7F4";
 
     public FpsModule(
@@ -39,6 +49,7 @@ public sealed class FpsModule : InfoModuleBase
     {
         if (_timer != null) return;
 
+        _stopRequested = false;
         SwitchMode(_settings.Current.FrameMonitoringMode);
         _timer = new System.Windows.Threading.DispatcherTimer
         {
@@ -93,12 +104,9 @@ public sealed class FpsModule : InfoModuleBase
     private void UpdateForegroundApplication(int? refreshRate)
     {
         var foreground = _foregroundProcessProvider.GetCurrent();
-        if (foreground is not null && foreground.ProcessId != _targetProcess?.ProcessId)
+        if (foreground is not null)
         {
-            _processSource.Stop();
-            _targetProcess = foreground;
-            _processSource.TargetProcessId = foreground.ProcessId;
-            _processSource.Start();
+            UpdateForegroundCandidate(foreground);
         }
 
         if (_targetProcess is null)
@@ -112,6 +120,12 @@ public sealed class FpsModule : InfoModuleBase
         CurrentValue = $"{_targetProcess.ProcessName} {FormatNumber(metrics.CurrentFps)} FPS\n" +
                        $"Display {FormatRefreshRate(refreshRate)}";
 
+        if (Volatile.Read(ref _activeProcessId) != _targetProcess.ProcessId)
+        {
+            Detail = metrics.Status ?? GetTransitionError() ?? "Switching application frame collector...";
+            return;
+        }
+
         if (metrics.AverageFps is double average &&
             metrics.OnePercentLowFps is double onePercentLow &&
             metrics.MinimumFps is double minimum &&
@@ -122,31 +136,30 @@ public sealed class FpsModule : InfoModuleBase
         }
         else
         {
-            Detail = metrics.Status ?? "Collecting application frame presents...";
+            Detail = metrics.Status ?? GetTransitionError() ?? "Collecting application frame presents...";
         }
     }
 
     private void SwitchMode(FrameMonitoringMode mode)
     {
-        _desktopSource.Stop();
-        _processSource.Stop();
+        _candidateProcess = null;
+        _candidateSamples = 0;
         _targetProcess = null;
         _activeMode = mode;
 
+        ForegroundProcessInfo? foreground = null;
         if (mode == FrameMonitoringMode.ForegroundApplication)
         {
-            var foreground = _foregroundProcessProvider.GetCurrent();
+            foreground = _foregroundProcessProvider.GetCurrent();
             if (foreground is not null)
             {
+                _candidateProcess = foreground;
+                _candidateSamples = 2;
                 _targetProcess = foreground;
-                _processSource.TargetProcessId = foreground.ProcessId;
-                _processSource.Start();
             }
         }
-        else
-        {
-            _desktopSource.Start();
-        }
+
+        RequestTransition(mode, foreground?.ProcessId);
     }
 
     public override void Stop()
@@ -158,17 +171,155 @@ public sealed class FpsModule : InfoModuleBase
             _timer = null;
         }
 
-        _desktopSource.Stop();
-        _processSource.Stop();
         _activeMode = null;
         _targetProcess = null;
+        _candidateProcess = null;
+        _candidateSamples = 0;
+        _ = RequestStop();
+    }
+
+    public override async Task StopAsync()
+    {
+        if (_timer != null)
+        {
+            _timer.Stop();
+            _timer.Tick -= OnTick;
+            _timer = null;
+        }
+
+        _activeMode = null;
+        _targetProcess = null;
+        _candidateProcess = null;
+        _candidateSamples = 0;
+
+        var transition = RequestStop();
+        await transition.ConfigureAwait(false);
     }
 
     public override void Dispose()
     {
-        Stop();
+        // Dispose can still be called through the synchronous IDisposable path.
+        // Wait for the serialized worker before releasing its metric sources.
+        try
+        {
+            StopAsync().GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // Disposal must remain best-effort even if a collector failed.
+        }
         _desktopSource.Dispose();
         _processSource.Dispose();
+    }
+
+    private void UpdateForegroundCandidate(ForegroundProcessInfo foreground)
+    {
+        if (_candidateProcess?.ProcessId != foreground.ProcessId)
+        {
+            _candidateProcess = foreground;
+            _candidateSamples = 1;
+            return;
+        }
+
+        _candidateSamples++;
+        if (_candidateSamples < 2 || _targetProcess?.ProcessId == foreground.ProcessId) return;
+
+        _targetProcess = foreground;
+        RequestTransition(FrameMonitoringMode.ForegroundApplication, foreground.ProcessId);
+    }
+
+    private Task RequestStop()
+    {
+        lock (_transitionSync)
+        {
+            _stopRequested = true;
+            _requestedProcessId = null;
+            _transitionVersion++;
+            return EnsureTransitionWorkerLocked();
+        }
+    }
+
+    private Task RequestTransition(FrameMonitoringMode mode, int? processId)
+    {
+        lock (_transitionSync)
+        {
+            _stopRequested = false;
+            _requestedMode = mode;
+            _requestedProcessId = processId;
+            _transitionVersion++;
+            return EnsureTransitionWorkerLocked();
+        }
+    }
+
+    private Task EnsureTransitionWorkerLocked()
+    {
+        if (_transitionTask is null || _transitionTask.IsCompleted)
+        {
+            _transitionTask = Task.Run(RunTransitionWorker);
+        }
+
+        return _transitionTask;
+    }
+
+    private void RunTransitionWorker()
+    {
+        while (true)
+        {
+            FrameMonitoringMode mode;
+            int? processId;
+            bool stop;
+            long version;
+            lock (_transitionSync)
+            {
+                version = _transitionVersion;
+                mode = _requestedMode;
+                processId = _requestedProcessId;
+                stop = _stopRequested;
+            }
+
+            try
+            {
+                Volatile.Write(ref _activeProcessId, 0);
+                _desktopSource.Stop();
+                _processSource.Stop();
+
+                if (!stop)
+                {
+                    if (mode == FrameMonitoringMode.ForegroundApplication && processId is > 0)
+                    {
+                        _processSource.TargetProcessId = processId;
+                        _processSource.Start();
+                        if (_processSource.IsRunning)
+                        {
+                            Volatile.Write(ref _activeProcessId, processId.Value);
+                        }
+                    }
+                    else if (mode == FrameMonitoringMode.DesktopOutput)
+                    {
+                        _desktopSource.Start();
+                    }
+                }
+
+                lock (_transitionSync)
+                {
+                    _transitionError = null;
+                    if (version == _transitionVersion) return;
+                }
+            }
+            catch (Exception ex)
+            {
+                lock (_transitionSync)
+                {
+                    _transitionError = ex.Message;
+                    if (version == _transitionVersion) return;
+                }
+            }
+        }
+    }
+
+    private string? GetTransitionError()
+    {
+        lock (_transitionSync) return _transitionError;
     }
 
     private static string FormatNumber(double? value) =>

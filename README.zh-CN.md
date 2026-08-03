@@ -22,19 +22,26 @@
 - **💻 CPU 使用率** — 通过 `GetSystemTimes` 采集全核利用率，每秒刷新
 - **🧠 内存** — 通过 `GlobalMemoryStatusEx` 获取 RAM 占用和页面文件统计
 - **⏱️ 网络延迟** — 每 5 秒 ping 223.5.5.5 / 1.1.1.1 / 8.8.8.8，取最优值
-- **🖼️ 帧性能**（v1.1.0）— 两种模式：
+- **🖼️ 帧性能**（v1.2.0）— 两种模式：
   - *桌面输出* — 通过 `DwmGetCompositionTimingInfo` 采样 DWM 合成帧率，显示 FPS + 显示刷新率
   - *前台应用* — 启动 PresentMon 2.5.1 采集进程级帧呈现，报告当前 FPS、60 秒平均、1% Low 和帧范围。需要**管理员权限**或加入 `Performance Log Users` 组
 
 每个模块都可以在设置中单独开关。
 
-### 🖼️ 帧性能（v1.1.0 · 实验性）
+### 🖼️ 帧性能（v1.2.0）
 
 | 变更 | 说明 |
 |---|---|
 | 桌面输出 | 采样 DWM 合成帧率，显示 FPS + 显示刷新率 |
 | 前台应用模式 | 内置 PresentMon 2.5.1 采集进程级帧呈现，报告 FPS / 60 秒平均 / 1% Low / 帧范围 |
 | 设置 | 桌面/应用模式切换 + 管理员提权提示 |
+
+### v1.2.0 更新
+
+| 变更 | 说明 |
+|---|---|
+| 🛠️ 修复已知问题 | 改进采集器生命周期、退出流程、前台进程切换和诊断日志 |
+| 🖼️ 帧性能 | 不再是实验性功能 |
 
 完整历史见：[CHANGELOG](./CHANGELOG.zh-CN.md)
 
@@ -79,7 +86,7 @@ Lychee/
 │   ├── CpuModule.cs
 │   ├── MemoryModule.cs
 │   ├── LatencyModule.cs
-│   └── FpsModule.cs            # v1.1.0 · 实验性
+│   └── FpsModule.cs            # v1.2.0 · 帧性能
 ├── Core/
 │   ├── FrameMetrics.cs         # 帧监控类型与接口
 │   ├── DwmFrameMetricsSource.cs

@@ -22,6 +22,8 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
     private string? _sessionName;
     private string? _status;
     private bool _legacyTraceCleanupAttempted;
+    private long _runId;
+    private int _isRunning;
     private DateTimeOffset _startedAt;
     private DateTimeOffset? _lastFrameAt;
 
@@ -31,7 +33,11 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
     }
 
     public string SourceName => "Application presents";
-    public bool IsRunning { get; private set; }
+    public bool IsRunning
+    {
+        get => Volatile.Read(ref _isRunning) != 0;
+        private set => Volatile.Write(ref _isRunning, value ? 1 : 0);
+    }
     public int? TargetProcessId { get; set; }
     public bool IsAvailable => _executablePath is not null;
 
@@ -75,7 +81,9 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
         // Reuse one named session so a trace left behind by a terminated
         // PresentMon process can be stopped before the next capture starts.
         var sessionName = $"Lychee_FrameMonitor_{GetCurrentUserSessionKey()}";
-        _sessionName = sessionName;
+        var runId = Interlocked.Increment(ref _runId);
+        var cancellation = new CancellationTokenSource();
+        var process = new Process { EnableRaisingEvents = true };
         var startInfo = new ProcessStartInfo
         {
             FileName = _executablePath,
@@ -91,25 +99,36 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8
         };
+        process.StartInfo = startInfo;
 
         try
         {
-            _cancellation = new CancellationTokenSource();
-            _process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
-            if (!_process.Start())
+            AppLog.Info($"Starting PresentMon for PID {TargetProcessId.Value}, session {sessionName}");
+            if (!process.Start())
             {
                 SetStatus("PresentMon could not be started");
+                CleanupFailedStart(process, cancellation);
+                _sessionName = null;
                 return;
             }
 
+            _cancellation = cancellation;
+            _process = process;
+            _sessionName = sessionName;
             IsRunning = true;
             SetStatus("Waiting for frame presents...");
-            _readerTask = ReadOutputAsync(_process, _cancellation.Token);
+            _readerTask = ReadOutputAsync(process, cancellation.Token, runId);
         }
         catch (Exception ex)
         {
             IsRunning = false;
             SetStatus($"PresentMon failed to start: {ex.Message}");
+            AppLog.Error("PresentMon start failed", ex);
+            CleanupFailedStart(process, cancellation);
+
+            if (ReferenceEquals(_process, process)) _process = null;
+            if (ReferenceEquals(_cancellation, cancellation)) _cancellation = null;
+            _sessionName = null;
         }
     }
 
@@ -133,21 +152,33 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
 
     public void Stop()
     {
-        IsRunning = false;
-        _cancellation?.Cancel();
+        var process = _process;
+        var cancellation = _cancellation;
+        var readerTask = _readerTask;
+        var sessionName = _sessionName;
 
-        if (!string.IsNullOrWhiteSpace(_sessionName))
+        IsRunning = false;
+        Interlocked.Increment(ref _runId);
+        _process = null;
+        _cancellation = null;
+        _readerTask = null;
+        _sessionName = null;
+
+        try { cancellation?.Cancel(); } catch { }
+
+        if (!string.IsNullOrWhiteSpace(sessionName))
         {
-            StopTraceSession(_sessionName);
+            AppLog.Info($"Stopping PresentMon session {sessionName}");
+            StopTraceSession(sessionName);
         }
 
         try
         {
-            if (_process is { HasExited: false })
+            if (process is { HasExited: false })
             {
-                if (!_process.WaitForExit(1000))
+                if (!process.WaitForExit(1000))
                 {
-                    _process.Kill(entireProcessTree: true);
+                    process.Kill(entireProcessTree: true);
                 }
             }
         }
@@ -155,23 +186,21 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
         {
         }
 
-        _process?.Dispose();
-        _process = null;
-        _sessionName = null;
-        _cancellation?.Dispose();
-        _cancellation = null;
-        _readerTask = null;
+        WaitForReader(readerTask);
+        process?.Dispose();
+        cancellation?.Dispose();
         _statistics.Clear();
     }
 
     public void Dispose() => Stop();
 
-    private async Task ReadOutputAsync(Process process, CancellationToken cancellationToken)
+    private async Task ReadOutputAsync(Process process, CancellationToken cancellationToken, long runId)
     {
         Dictionary<string, int>? columns = null;
+        Task<string>? errorTask = null;
         try
         {
-            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
             while (!cancellationToken.IsCancellationRequested)
             {
                 var line = await process.StandardOutput.ReadLineAsync(cancellationToken);
@@ -193,18 +222,23 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
                     continue;
                 }
 
-                _statistics.Add(DateTimeOffset.Now, frameTime);
-                SetLastFrameAt(DateTimeOffset.Now);
-                SetStatus(null);
+                if (IsCurrentRun(runId))
+                {
+                    var capturedAt = DateTimeOffset.Now;
+                    _statistics.Add(capturedAt, frameTime);
+                    SetLastFrameAt(capturedAt);
+                    SetStatus(null);
+                }
             }
 
             var error = await errorTask;
-            if (!cancellationToken.IsCancellationRequested && !string.IsNullOrWhiteSpace(error))
+            if (IsCurrentRun(runId) && !cancellationToken.IsCancellationRequested && !string.IsNullOrWhiteSpace(error))
             {
+                AppLog.Error("PresentMon stderr", error.Trim());
                 SetStatus(NormalizeError(error));
             }
 
-            if (!cancellationToken.IsCancellationRequested)
+            if (IsCurrentRun(runId) && !cancellationToken.IsCancellationRequested)
             {
                 await process.WaitForExitAsync(cancellationToken);
                 IsRunning = false;
@@ -219,8 +253,19 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
         }
         catch (Exception ex)
         {
-            IsRunning = false;
-            SetStatus($"PresentMon reader failed: {ex.Message}");
+            if (IsCurrentRun(runId))
+            {
+                IsRunning = false;
+                AppLog.Error("PresentMon reader failed", ex);
+                SetStatus($"PresentMon reader failed: {ex.Message}");
+            }
+        }
+        finally
+        {
+            if (errorTask is not null)
+            {
+                try { await errorTask; } catch { }
+            }
         }
     }
 
@@ -424,7 +469,7 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
     {
         try
         {
-            using var query = Process.Start(new ProcessStartInfo
+            var output = RunBoundedProcess(new ProcessStartInfo
             {
                 FileName = "logman.exe",
                 Arguments = "query -ets",
@@ -432,11 +477,10 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true
-            });
-            if (query is null) return;
+            }, TimeSpan.FromSeconds(3));
+            if (output is null) return;
 
-            var output = query.StandardOutput.ReadToEnd();
-            query.WaitForExit(3000);
+            var stopped = 0;
             foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
                 var trimmed = line.Trim();
@@ -448,11 +492,15 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
                 if (!string.IsNullOrWhiteSpace(sessionName))
                 {
                     StopTraceSession(sessionName);
+                    stopped++;
                 }
             }
+
+            if (stopped > 0) AppLog.Info($"Cleaned up {stopped} legacy Lychee trace session(s)");
         }
-        catch
+        catch (Exception ex)
         {
+            AppLog.Error("Legacy trace cleanup failed", ex);
             // If enumeration is unavailable, PresentMon will still report the
             // exact StartTrace error and the existing-session flag can recover
             // the current deterministic session name.
@@ -463,7 +511,7 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
     {
         try
         {
-            using var stop = Process.Start(new ProcessStartInfo
+            _ = RunBoundedProcess(new ProcessStartInfo
             {
                 FileName = "logman.exe",
                 ArgumentList = { "stop", sessionName, "-ets" },
@@ -471,17 +519,64 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true
-            });
-            if (stop is null) return;
+            }, TimeSpan.FromSeconds(3));
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error($"Failed to stop trace session '{sessionName}'", ex);
+        }
+    }
 
-            stop.StandardOutput.ReadToEnd();
-            stop.StandardError.ReadToEnd();
-            stop.WaitForExit(3000);
+    private static string? RunBoundedProcess(ProcessStartInfo startInfo, TimeSpan timeout)
+    {
+        using var process = Process.Start(startInfo);
+        if (process is null) return null;
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        var exitTask = process.WaitForExitAsync();
+        var allTask = Task.WhenAll(stdoutTask, stderrTask, exitTask);
+
+        if (!allTask.Wait(timeout))
+        {
+            try
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+            }
+            catch
+            {
+            }
+
+            try { allTask.Wait(TimeSpan.FromMilliseconds(500)); } catch { }
+        }
+
+        return stdoutTask.IsCompletedSuccessfully ? stdoutTask.Result : null;
+    }
+
+    private static void CleanupFailedStart(Process process, CancellationTokenSource cancellation)
+    {
+        try
+        {
+            cancellation.Cancel();
+            if (process is { HasExited: false }) process.Kill(entireProcessTree: true);
         }
         catch
         {
         }
+        finally
+        {
+            process.Dispose();
+            cancellation.Dispose();
+        }
     }
+
+    private void WaitForReader(Task? readerTask)
+    {
+        if (readerTask is null || Task.CurrentId == readerTask.Id) return;
+        try { readerTask.Wait(TimeSpan.FromSeconds(2)); } catch { }
+    }
+
+    private bool IsCurrentRun(long runId) => Volatile.Read(ref _runId) == runId;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Luid
@@ -535,3 +630,4 @@ public sealed class PresentMonFrameMetricsSource : IProcessFrameMetricsSource
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CloseHandle(IntPtr handle);
 }
+

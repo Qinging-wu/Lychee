@@ -28,25 +28,15 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 
 Each module can be toggled on/off individually in Settings.
 
-### What's new in v1.1.2
+### 🖼️ Frame Performance (v1.1.0 · Experimental)
 
 | Change | Detail |
 |---|---|
-| 🎨 New app icon | Minor update — refreshed tray & exe icon |
+| Desktop output | Samples DWM composition cadence, shows FPS + display refresh rate |
+| Foreground app mode | Bundled PresentMon 2.5.1 for per-process frame capture, reports FPS / 60s avg / 1% low / frame range |
+| Settings | Desktop/App mode switch + admin restart prompt |
 
-### What's new in v1.1.1
-
-| Change | Detail |
-|---|---|
-| 📁 Folder-based publish | Switched from single-file exe to folder publish to reduce antivirus false positives |
-
-### What's new in v1.1.0
-
-| Change | Detail |
-|---|---|
-| 🖼️ Frame Performance (Experimental) | Desktop output + PresentMon foreground app mode |
-| ⚙️ Frame monitoring settings | Desktop/App mode switch + admin restart prompt |
-| 🔧 PresentMon integration | Bundled PresentMon 2.5.1, ETW session management |
+Full history: [CHANGELOG](./CHANGELOG.md)
 
 ## 🖱️ Usage
 

@@ -28,6 +28,12 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 
 Each module can be toggled on/off individually in Settings.
 
+### What's new in v1.1.2
+
+| Change | Detail |
+|---|---|
+| 🎨 New app icon | Minor update — refreshed tray & exe icon, floating ball unchanged |
+
 ### What's new in v1.1.1
 
 | Change | Detail |

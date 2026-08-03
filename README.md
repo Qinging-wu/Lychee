@@ -28,14 +28,6 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 
 Each module can be toggled on/off individually in Settings.
 
-### 🖼️ Frame Performance (v1.2.0)
-
-| Change | Detail |
-|---|---|
-| Desktop output | Samples DWM composition cadence, shows FPS + display refresh rate |
-| Foreground app mode | Bundled PresentMon 2.5.1 for per-process frame capture, reports FPS / 60s avg / 1% low / frame range |
-| Settings | Desktop/App mode switch + admin restart prompt |
-
 ### What's new in v1.2.0
 
 | Change | Detail |

@@ -9,6 +9,8 @@ public sealed class NetworkSpeedModule : InfoModuleBase
     public override string DisplayName => "Network Speed";
     public override string Icon => "\uE704";
 
+    private const int IdleSamplesBeforeReselect = 4;
+
     private PeriodicTimer? _timer;
     private Task? _loopTask;
     private CancellationTokenSource? _cts;
@@ -16,25 +18,55 @@ public sealed class NetworkSpeedModule : InfoModuleBase
     private long _lastBytesSent;
     private long _lastBytesReceived;
     private DateTime _lastSampleTime;
+    private int _idleSampleCount;
 
     public NetworkSpeedModule()
     {
-        PickBestInterface();
+        _nic = PickBestInterface();
         CurrentValue = "↓ 0 B/s   ↑ 0 B/s";
     }
 
-    private void PickBestInterface()
+    private static NetworkInterface? PickBestInterface()
     {
-        _nic = NetworkInterface.GetAllNetworkInterfaces()
-            .Where(n => n.OperationalStatus == OperationalStatus.Up
-                && n.NetworkInterfaceType != NetworkInterfaceType.Loopback
-                && n.NetworkInterfaceType != NetworkInterfaceType.Tunnel)
-            .OrderByDescending(n =>
-            {
-                try { return n.GetIPv4Statistics().BytesReceived + n.GetIPv4Statistics().BytesSent; }
-                catch { return 0; }
-            })
+        return NetworkInterface.GetAllNetworkInterfaces()
+            .Where(IsUsable)
+            .OrderByDescending(TotalTraffic)
             .FirstOrDefault();
+    }
+
+    private static bool IsUsable(NetworkInterface nic)
+    {
+        if (nic == null) return false;
+        if (nic.OperationalStatus != OperationalStatus.Up) return false;
+        var type = nic.NetworkInterfaceType;
+        if (type == NetworkInterfaceType.Loopback || type == NetworkInterfaceType.Tunnel) return false;
+        try { nic.GetIPv4Statistics(); return true; }
+        catch { return false; }
+    }
+
+    private static long TotalTraffic(NetworkInterface nic)
+    {
+        try
+        {
+            var s = nic.GetIPv4Statistics();
+            return s.BytesReceived + s.BytesSent;
+        }
+        catch { return 0; }
+    }
+
+    private void ResetBaseline()
+    {
+        try
+        {
+            var stats = _nic!.GetIPv4Statistics();
+            _lastBytesSent = stats.BytesSent;
+            _lastBytesReceived = stats.BytesReceived;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("network-speed", ex);
+        }
+        _lastSampleTime = DateTime.Now;
     }
 
     public override void Start()
@@ -46,14 +78,7 @@ public sealed class NetworkSpeedModule : InfoModuleBase
             return;
         }
 
-        try
-        {
-            var stats = _nic.GetIPv4Statistics();
-            _lastBytesSent = stats.BytesSent;
-            _lastBytesReceived = stats.BytesReceived;
-            _lastSampleTime = DateTime.Now;
-        }
-        catch { return; }
+        ResetBaseline();
 
         _cts = new CancellationTokenSource();
         _timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -74,7 +99,17 @@ public sealed class NetworkSpeedModule : InfoModuleBase
     {
         try
         {
-            if (_nic == null) return;
+            if (_nic == null || !IsUsable(_nic))
+            {
+                _nic = PickBestInterface();
+                if (_nic == null)
+                {
+                    CurrentValue = "No network adapter found";
+                    return;
+                }
+                ResetBaseline();
+            }
+
             var stats = _nic.GetIPv4Statistics();
             var now = DateTime.Now;
             var dt = (now - _lastSampleTime).TotalSeconds;
@@ -90,9 +125,31 @@ public sealed class NetworkSpeedModule : InfoModuleBase
             if (down < 0) down = 0;
             if (up < 0) up = 0;
 
+            // If the current adapter has been idle for a while, the active route may
+            // have moved (VPN drop/reconnect, WiFi<->Ethernet switch). Re-pick the
+            // adapter with the most traffic and, if it changed, switch to it.
+            if (down + up <= 0.1)
+                _idleSampleCount++;
+            else
+                _idleSampleCount = 0;
+
+            if (_idleSampleCount >= IdleSamplesBeforeReselect)
+            {
+                var best = PickBestInterface();
+                if (best != null && best.Id != _nic.Id)
+                {
+                    _nic = best;
+                    _idleSampleCount = 0;
+                    ResetBaseline();
+                }
+            }
+
             CurrentValue = $"↓ {FormatSpeed(down)}   ↑ {FormatSpeed(up)}";
         }
-        catch { }
+        catch (Exception ex)
+        {
+            AppLog.Error("network-speed", ex);
+        }
     }
 
     private static string FormatSpeed(double bytesPerSecond)

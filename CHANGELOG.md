@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.0
+
+| Change | Detail |
+|---|---|
+| 🛠️ Known issue fixes | Improved collector lifecycle, shutdown handling, process switching, and diagnostic logging |
+| 🖼️ Frame Performance | No longer experimental |
+
 ## v1.1.2
 
 | Change | Detail |

@@ -14,6 +14,7 @@ public interface IInfoModule : IDisposable
     event EventHandler? ValueChanged;
     void Start();
     void Stop();
+    Task StopAsync();
 }
 
 public abstract class InfoModuleBase : IInfoModule, INotifyPropertyChanged
@@ -65,6 +66,12 @@ public abstract class InfoModuleBase : IInfoModule, INotifyPropertyChanged
 
     public abstract void Start();
     public abstract void Stop();
+
+    public virtual Task StopAsync()
+    {
+        Stop();
+        return Task.CompletedTask;
+    }
 
     protected void SetField<T>(ref T field, T value, [CallerMemberName] string? name = null)
     {

@@ -55,7 +55,10 @@ public sealed class MemoryModule : InfoModuleBase
             CurrentValue = $"RAM  {load}%\n{FormatBytes(usedBytes)} / {FormatBytes(totalBytes)}";
             Detail = $"Free {FormatBytes(availBytes)} · Page {FormatBytes(memStatus.ullAvailPageFile)}/{FormatBytes(memStatus.ullTotalPageFile)}";
         }
-        catch { }
+        catch (Exception ex)
+        {
+            AppLog.Error("memory", ex);
+        }
     }
 
     private static string FormatBytes(ulong bytes)

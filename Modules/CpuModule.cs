@@ -84,7 +84,10 @@ public sealed class CpuModule : InfoModuleBase
             CurrentValue = $"CPU  {usage:F0}%";
             Detail = $"{Environment.ProcessorCount} logical cores";
         }
-        catch { }
+        catch (Exception ex)
+        {
+            AppLog.Error("cpu", ex);
+        }
     }
 
     private void SetBaseline(long idle, long kernel, long user)

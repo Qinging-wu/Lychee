@@ -179,9 +179,12 @@ public sealed class PublicIpModule : InfoModuleBase
             CurrentValue = display;
         }
         catch (OperationCanceledException) { }
-        catch (Exception)
+        catch (Exception ex)
         {
             _consecutiveFailures++;
+            if (_consecutiveFailures == 1)
+                AppLog.Error("public-ip", ex);
+
             CurrentValue = _consecutiveFailures switch
             {
                 1 => "Network error, retrying...",

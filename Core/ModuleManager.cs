@@ -59,4 +59,13 @@ public sealed class ModuleManager : IDisposable
         StopAll();
         foreach (var m in _modules) m.Dispose();
     }
+
+    public async Task DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        var stops = _modules.Select(m => m.StopAsync()).ToArray();
+        await Task.WhenAll(stops).ConfigureAwait(true);
+        foreach (var m in _modules) m.Dispose();
+    }
 }

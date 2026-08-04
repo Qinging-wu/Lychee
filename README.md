@@ -32,7 +32,6 @@ Each module can be toggled on/off individually in Settings.
 
 | Change | Detail |
 |---|---|
-| 🛠️ Known issue fixes | Improved collector lifecycle, shutdown handling, process switching, and diagnostic logging |
 | 🖼️ Frame Performance | No longer experimental |
 
 Full history: [CHANGELOG](./CHANGELOG.md)

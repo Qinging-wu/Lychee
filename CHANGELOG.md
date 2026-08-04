@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.0
+
+| Change | Detail |
+|---|---|
+| 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings) |
+| 🔧 Pinned panel fix | Dragging with a pinned panel no longer occludes content or sticks the ball |
+
 ## v1.2.0
 
 | Change | Detail |

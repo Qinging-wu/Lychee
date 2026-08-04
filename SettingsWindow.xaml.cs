@@ -21,6 +21,7 @@ public partial class SettingsWindow : Window
 
         AlwaysShowCheckBox.IsChecked = _settings.Current.AlwaysShowPanel;
         AlertIpCheckBox.IsChecked = _settings.Current.AlertOnIpChange;
+        SnapCheckBox.IsChecked = _settings.Current.SnapToEdge;
         FrameModeComboBox.SelectedIndex = _settings.Current.FrameMonitoringMode == FrameMonitoringMode.ForegroundApplication
             ? 1
             : 0;
@@ -37,6 +38,11 @@ public partial class SettingsWindow : Window
     private void AlertIp_Changed(object sender, RoutedEventArgs e)
     {
         _settings.Update(s => s.AlertOnIpChange = AlertIpCheckBox.IsChecked == true);
+    }
+
+    private void Snap_Changed(object sender, RoutedEventArgs e)
+    {
+        _settings.Update(s => s.SnapToEdge = SnapCheckBox.IsChecked == true);
     }
 
     private void FrameMode_Changed(object sender, SelectionChangedEventArgs e)

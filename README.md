@@ -1,4 +1,4 @@
-# 🍈 Lychee
+# <img src="Assets/icon-thumb.png" alt="Lychee" width="32" height="32" align="center"> Lychee
 
 English | [简体中文](./README.zh-CN.md)
 

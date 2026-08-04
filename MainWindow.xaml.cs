@@ -52,6 +52,7 @@ public partial class MainWindow : Window
     private bool _isDragging;
     private bool _isMouseDown;
     private bool _dragStarted;
+    private bool _restorePinnedAfterDrag;
     private Point _dragStartScreen;
     private double _dragStartLeft;
     private double _dragStartTop;
@@ -133,6 +134,11 @@ public partial class MainWindow : Window
         {
             CollapsePanel(immediate: true);
         }
+
+        if (s.SnapToEdge)
+        {
+            SnapToNearestEdge();
+        }
     }
 
     private void Window_SourceInitialized(object sender, EventArgs e)
@@ -207,6 +213,9 @@ public partial class MainWindow : Window
         var targetHeight = CalcExpandedHeight(visibleModules);
         var targetWidth = PanelWidth + BallSlot + PanelMargin;
 
+        BeginAnimation(LeftProperty, null);
+        BeginAnimation(TopProperty, null);
+
         Width = targetWidth;
         Height = targetHeight;
 
@@ -246,15 +255,18 @@ public partial class MainWindow : Window
         PanelBorder.BeginAnimation(OpacityProperty, fade);
     }
 
-    private void CollapsePanel(bool immediate = false)
+    private void CollapsePanel(bool immediate = false, bool force = false)
     {
         if (!_isExpanded) return;
         _isExpanded = false;
 
-        if (_settings.Current.AlwaysShowPanel) return;
+        if (_settings.Current.AlwaysShowPanel && !force) return;
 
         var ballX = GetBallScreenX();
         var ballY = GetBallScreenY();
+
+        BeginAnimation(LeftProperty, null);
+        BeginAnimation(TopProperty, null);
 
         Width = BallSlot;
         Height = BallSlot;
@@ -336,9 +348,10 @@ public partial class MainWindow : Window
 
         _dragStartScreen = PointToScreen(e.GetPosition(this));
 
-        if (_isExpanded && !_settings.Current.AlwaysShowPanel)
+        if (_isExpanded)
         {
-            CollapsePanel(immediate: true);
+            _restorePinnedAfterDrag = _settings.Current.AlwaysShowPanel;
+            CollapsePanel(immediate: true, force: _settings.Current.AlwaysShowPanel);
         }
 
         _dragStartLeft = Left;
@@ -401,6 +414,24 @@ public partial class MainWindow : Window
             _dragStarted = false;
             BallEllipse.ReleaseMouseCapture();
             RefreshBallSideFromPosition();
+            if (_settings.Current.SnapToEdge)
+            {
+                SnapToNearestEdge(RestorePinnedPanelAfterDrag);
+            }
+            else
+            {
+                RestorePinnedPanelAfterDrag();
+            }
+        }
+    }
+
+    private void RestorePinnedPanelAfterDrag()
+    {
+        if (!_restorePinnedAfterDrag) return;
+        _restorePinnedAfterDrag = false;
+        if (_settings.Current.AlwaysShowPanel)
+        {
+            ExpandPanel();
         }
     }
 
@@ -427,6 +458,65 @@ public partial class MainWindow : Window
         var ballCenterY = Top + BallSlot / 2;
         _isRightSide = ballCenterX >= waLeft + waWidth / 2;
         _isBottomSide = ballCenterY >= waTop + waHeight / 2;
+    }
+
+    private void SnapToNearestEdge(Action? onCompleted = null)
+    {
+        var src = PresentationSource.FromVisual(this);
+        if (src == null) return;
+        double scaleX = src.CompositionTarget.TransformFromDevice.M11;
+        double scaleY = src.CompositionTarget.TransformFromDevice.M22;
+
+        var ballCenterDevice = PointToScreen(new Point(
+            Canvas.GetLeft(BallEllipse) + BallSize / 2,
+            Canvas.GetTop(BallEllipse) + BallSize / 2));
+        var screen = System.Windows.Forms.Screen.FromPoint(
+            new System.Drawing.Point((int)ballCenterDevice.X, (int)ballCenterDevice.Y));
+        var wa = screen.WorkingArea;
+
+        var waLeft = wa.Left * scaleX;
+        var waWidth = wa.Width * scaleX;
+        var waTop = wa.Top * scaleY;
+        var waHeight = wa.Height * scaleY;
+        var waRight = waLeft + waWidth;
+        var waBottom = waTop + waHeight;
+
+        // Ball's actual screen position (works whether the panel is collapsed or expanded).
+        var ballScreenX = GetBallScreenX();
+        var ballScreenY = GetBallScreenY();
+        var ballCenterX = ballScreenX + BallSize / 2;
+        var ballCenterY = ballScreenY + BallSize / 2;
+
+        var dLeft = Math.Abs(ballCenterX - waLeft);
+        var dRight = Math.Abs(waRight - ballCenterX);
+        var dTop = Math.Abs(ballCenterY - waTop);
+        var dBottom = Math.Abs(waBottom - ballCenterY);
+
+        var min = Math.Min(Math.Min(dLeft, dRight), Math.Min(dTop, dBottom));
+
+        var ballLeft = Canvas.GetLeft(BallEllipse);
+        var ballTop = Canvas.GetTop(BallEllipse);
+
+        double targetLeft = Left, targetTop = Top;
+        if (min == dLeft) targetLeft = waLeft - ballLeft;
+        else if (min == dRight) targetLeft = waRight - ballLeft - BallSize;
+        else if (min == dTop) targetTop = waTop - ballTop;
+        else targetTop = waBottom - ballTop - BallSize;
+
+        _isRightSide = ballCenterX >= waLeft + waWidth / 2;
+        _isBottomSide = ballCenterY >= waTop + waHeight / 2;
+
+        if (Math.Abs(targetLeft - Left) < 0.5 && Math.Abs(targetTop - Top) < 0.5)
+        {
+            onCompleted?.Invoke();
+            return;
+        }
+
+        var slide = new DoubleAnimation(Left, targetLeft, TimeSpan.FromMilliseconds(120));
+        BeginAnimation(LeftProperty, slide);
+        var slideY = new DoubleAnimation(Top, targetTop, TimeSpan.FromMilliseconds(120));
+        slideY.Completed += (s, e) => onCompleted?.Invoke();
+        BeginAnimation(TopProperty, slideY);
     }
 
     private void Pin_Click(object sender, RoutedEventArgs e) => TogglePin();

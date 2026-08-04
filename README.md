@@ -28,11 +28,12 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 
 Each module can be toggled on/off individually in Settings.
 
-### What's new in v1.2.0
+### What's new
 
-| Change | Detail |
-|---|---|
-| 🖼️ Frame Performance | No longer experimental |
+| Version | Change | Detail |
+|---|---|---|
+| v1.3.0 | Add "snap to edge" function | --- |
+| v1.2.0 | 🖼️ Frame Performance | No longer experimental |
 
 Full history: [CHANGELOG](./CHANGELOG.md)
 

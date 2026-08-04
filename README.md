@@ -1,4 +1,4 @@
-# <img src="Assets/icon-thumb.png" alt="Lychee" width="32" height="32" align="center"> Lychee
+# <img src="Assets/icon-thumb-64.png" alt="Lychee" width="32" height="32" align="center"> Lychee
 
 English | [简体中文](./README.zh-CN.md)
 

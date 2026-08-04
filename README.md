@@ -32,7 +32,7 @@ Each module can be toggled on/off individually in Settings.
 
 | Version | Change | Detail |
 |---|---|---|
-| v1.3.0 | Add "snap to edge" function | --- |
+| v1.3.0 | 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings) |
 | v1.2.0 | 🖼️ Frame Performance | No longer experimental |
 
 Full history: [CHANGELOG](./CHANGELOG.md)

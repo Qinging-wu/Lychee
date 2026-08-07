@@ -22,6 +22,7 @@ public partial class SettingsWindow : Window
         AlwaysShowCheckBox.IsChecked = _settings.Current.AlwaysShowPanel;
         AlertIpCheckBox.IsChecked = _settings.Current.AlertOnIpChange;
         SnapCheckBox.IsChecked = _settings.Current.SnapToEdge;
+        BouncyBallCheckBox.IsChecked = _settings.Current.BouncyBall;
         FrameModeComboBox.SelectedIndex = _settings.Current.FrameMonitoringMode == FrameMonitoringMode.ForegroundApplication
             ? 1
             : 0;
@@ -43,6 +44,13 @@ public partial class SettingsWindow : Window
     private void Snap_Changed(object sender, RoutedEventArgs e)
     {
         _settings.Update(s => s.SnapToEdge = SnapCheckBox.IsChecked == true);
+    }
+
+    private void BouncyBall_Changed(object sender, RoutedEventArgs e)
+    {
+        var enabled = BouncyBallCheckBox.IsChecked == true;
+        _settings.Update(s => s.BouncyBall = enabled);
+        if (enabled) Close();
     }
 
     private void FrameMode_Changed(object sender, SelectionChangedEventArgs e)

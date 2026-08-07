@@ -14,6 +14,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -72,9 +73,18 @@
             </DockPanel>
         </Border>
 
-        <TextBlock Grid.Row="5" Text="Info Modules" Foreground="#FFCCCCCC" FontSize="12" Margin="0,8,0,6"/>
+        <Border Grid.Row="5" Background="#22FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+            <DockPanel>
+                <TextBlock Text="Do NOT check this" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
+                <CheckBox x:Name="BouncyBallCheckBox" DockPanel.Dock="Right"
+                          Checked="BouncyBall_Changed" Unchecked="BouncyBall_Changed"
+                          HorizontalAlignment="Right" Background="#FF5B8CFF" BorderBrush="#FF5B8CFF"/>
+            </DockPanel>
+        </Border>
 
-        <Border Grid.Row="6" Background="#22FFFFFF" CornerRadius="8" Padding="6">
+        <TextBlock Grid.Row="6" Text="Info Modules" Foreground="#FFCCCCCC" FontSize="12" Margin="0,8,0,6"/>
+
+        <Border Grid.Row="7" Background="#22FFFFFF" CornerRadius="8" Padding="6">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="ModuleToggleList">
                     <ItemsControl.ItemTemplate>
@@ -101,7 +111,7 @@
             </ScrollViewer>
         </Border>
 
-        <TextBlock Grid.Row="7" Text="Lychee - Config: %AppData%\Lychee\settings.json"
+        <TextBlock Grid.Row="8" Text="Lychee - Config: %AppData%\Lychee\settings.json"
                    Foreground="#888888" FontSize="10" Margin="0,12,0,0"/>
     </Grid>
 </Window>

@@ -91,7 +91,10 @@
                  MouseMove="Ball_MouseMove"
                  Cursor="SizeAll">
             <Ellipse.RenderTransform>
-                <ScaleTransform x:Name="BallScale" ScaleX="1" ScaleY="1"/>
+                <TransformGroup>
+                    <ScaleTransform x:Name="BallScale" ScaleX="1" ScaleY="1"/>
+                    <RotateTransform x:Name="BallRotate" Angle="0"/>
+                </TransformGroup>
             </Ellipse.RenderTransform>
             <Ellipse.Effect>
                 <DropShadowEffect x:Name="BallShadow" Color="#5B8CFF" BlurRadius="14" ShadowDepth="0" Opacity="0.6"/>

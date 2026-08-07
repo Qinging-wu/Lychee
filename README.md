@@ -181,7 +181,7 @@ _moduleManager.RegisterModule(new WeatherModule());
 
 - Some exclusive fullscreen games may still cover the ball despite topmost
 - Public IP may show as IP-only (no city/country) when the geo lookup returns empty
-- Snap to edge is off by default and only triggers on drag release, not on startup or after a screen layout change
+- Snap to edge uses the working area (excluding the taskbar), so a ball snapped to a bottom edge rests above the taskbar, not at the physical screen edge
 - Some antivirus software may flag Lychee.exe as a false positive due to P/Invoke, COM interop, and the bundled PresentMon tool. The source code is fully open — you can inspect and build it yourself, or add an exclusion for Lychee if needed
 
 ## 📄 License

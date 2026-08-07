@@ -4,7 +4,7 @@
 
 | Change | Detail |
 |---|---|
-| 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings) |
+| 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings). Note: it snaps to the working area edge — a ball snapped to the bottom rests above the taskbar, not at the physical screen edge |
 | 🔧 Pinned panel fix | Dragging with a pinned panel no longer occludes content or sticks the ball |
 
 ## v1.2.0

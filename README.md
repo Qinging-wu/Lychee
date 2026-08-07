@@ -32,7 +32,7 @@ Each module can be toggled on/off individually in Settings.
 
 | Version | Change | Detail |
 |---|---|---|
-| v1.3.0 | 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings) |
+| v1.3.0 | 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings). Note: it snaps to the working area edge — a ball snapped to the bottom rests above the taskbar, not at the physical screen edge |
 | v1.2.0 | 🖼️ Frame Performance | No longer experimental |
 
 Full history: [CHANGELOG](./CHANGELOG.md)
@@ -181,7 +181,6 @@ _moduleManager.RegisterModule(new WeatherModule());
 
 - Some exclusive fullscreen games may still cover the ball despite topmost
 - Public IP may show as IP-only (no city/country) when the geo lookup returns empty
-- Snap to edge uses the working area (excluding the taskbar), so a ball snapped to a bottom edge rests above the taskbar, not at the physical screen edge
 - Some antivirus software may flag Lychee.exe as a false positive due to P/Invoke, COM interop, and the bundled PresentMon tool. The source code is fully open — you can inspect and build it yourself, or add an exclusion for Lychee if needed
 
 ## 📄 License

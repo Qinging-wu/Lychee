@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.1
+
+| Change | Detail |
+|---|---|
+| 🔧 Bug fixes | Improved visual experience |
+
 ## v1.4.0
 
 | Change | Detail |

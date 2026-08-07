@@ -203,6 +203,7 @@ public partial class MainWindow : Window
         Height = BallSlot;
         Canvas.SetLeft(BallEllipse, BallMargin);
         Canvas.SetTop(BallEllipse, BallMargin);
+        SyncBallGlow();
         Canvas.SetTop(PanelBorder, PanelMargin);
     }
 
@@ -214,6 +215,12 @@ public partial class MainWindow : Window
     private double GetBallScreenY()
     {
         return Top + Canvas.GetTop(BallEllipse);
+    }
+
+    private void SyncBallGlow()
+    {
+        Canvas.SetLeft(BallGlow, Canvas.GetLeft(BallEllipse) - BallMargin);
+        Canvas.SetTop(BallGlow, Canvas.GetTop(BallEllipse) - BallMargin);
     }
 
     private string? GetActiveDisplayDeviceName()
@@ -279,6 +286,8 @@ public partial class MainWindow : Window
             Canvas.SetTop(PanelBorder, PanelMargin);
         }
 
+        SyncBallGlow();
+
         PanelBorder.Opacity = 0;
         var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(120));
         PanelBorder.BeginAnimation(OpacityProperty, fade);
@@ -301,6 +310,7 @@ public partial class MainWindow : Window
         Height = BallSlot;
         Canvas.SetLeft(BallEllipse, BallMargin);
         Canvas.SetTop(BallEllipse, BallMargin);
+        SyncBallGlow();
         Left = ballX - BallMargin;
         Top = ballY - BallMargin;
 
@@ -334,7 +344,7 @@ public partial class MainWindow : Window
                 new DoubleAnimation(1.1, TimeSpan.FromMilliseconds(120)));
             BallScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty,
                 new DoubleAnimation(1.1, TimeSpan.FromMilliseconds(120)));
-            BallShadow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty,
+            BallGlow.BeginAnimation(OpacityProperty,
                 new DoubleAnimation(0.9, TimeSpan.FromMilliseconds(120)));
             if (!_settings.Current.AlwaysShowPanel)
             {
@@ -348,7 +358,7 @@ public partial class MainWindow : Window
                 new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(120)));
             BallScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty,
                 new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(120)));
-            BallShadow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty,
+            BallGlow.BeginAnimation(OpacityProperty,
                 new DoubleAnimation(0.6, TimeSpan.FromMilliseconds(120)));
             if (!_settings.Current.AlwaysShowPanel)
             {
@@ -575,6 +585,7 @@ public partial class MainWindow : Window
         Height = BallSlot;
         Canvas.SetLeft(BallEllipse, BallMargin);
         Canvas.SetTop(BallEllipse, BallMargin);
+        SyncBallGlow();
 
         var angle = _bouncyRng.NextDouble() * Math.PI * 2;
         var speed = 320 + _bouncyRng.NextDouble() * 160;

@@ -58,6 +58,23 @@ public partial class MainWindow : Window
     private double _dragStartTop;
     private const double DragThreshold = 5;
 
+    private bool _bouncyActive;
+    private DispatcherTimer? _bouncyTimer;
+    private DispatcherTimer? _bouncyTimeoutTimer;
+    private DateTime _bouncyLastTick;
+    private Vector _bouncyVelocity;
+    private double _bouncyAngularVelocity;
+    private DateTime _bouncyLastImpulse;
+    private static readonly TimeSpan BouncyImpulseCooldown = TimeSpan.FromMilliseconds(220);
+    private const double BouncyMinSpeed = 90;
+    private const double BouncyMaxSpeed = 1400;
+    private const double BouncyImpulse = 380;
+    private const double BouncyRestitution = 0.86;
+    private const double BouncyFrictionPerSec = 0.18;
+    private const double BouncyAngularFrictionPerSec = 0.55;
+    private static readonly TimeSpan BouncyDuration = TimeSpan.FromMinutes(1);
+    private readonly Random _bouncyRng = new();
+
     public MainWindow()
     {
         InitializeComponent();
@@ -126,6 +143,18 @@ public partial class MainWindow : Window
     private void ApplySettings()
     {
         var s = _settings.Current;
+
+        if (s.BouncyBall)
+        {
+            if (!_bouncyActive) StartBouncyBallMode();
+        }
+        else
+        {
+            if (_bouncyActive) StopBouncyBallMode(snapAfter: true);
+        }
+
+        if (_bouncyActive) return;
+
         if (s.AlwaysShowPanel)
         {
             ExpandPanel(immediate: true);
@@ -280,7 +309,7 @@ public partial class MainWindow : Window
 
     private void HoverTimer_Tick(object? sender, EventArgs e)
     {
-        if (_isDragging || _isMouseDown) return;
+        if (_bouncyActive || _isDragging || _isMouseDown) return;
 
         var src = PresentationSource.FromVisual(this);
         double scaleX = 1, scaleY = 1;
@@ -338,6 +367,15 @@ public partial class MainWindow : Window
 
     private void Ball_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (_bouncyActive)
+        {
+            if (e.ClickCount >= 2)
+            {
+                _settings.Update(s => s.BouncyBall = false);
+            }
+            return;
+        }
+
         if (e.ClickCount >= 2)
         {
             TogglePin();
@@ -521,6 +559,160 @@ public partial class MainWindow : Window
 
     private void Pin_Click(object sender, RoutedEventArgs e) => TogglePin();
 
+    private void StartBouncyBallMode()
+    {
+        if (_bouncyActive) return;
+        _bouncyActive = true;
+
+        if (_settings.Current.AlwaysShowPanel)
+            _settings.Update(s => s.AlwaysShowPanel = false);
+        if (_settings.Current.SnapToEdge)
+            _settings.Update(s => s.SnapToEdge = false);
+
+        CollapsePanel(immediate: true, force: true);
+
+        Width = BallSlot;
+        Height = BallSlot;
+        Canvas.SetLeft(BallEllipse, BallMargin);
+        Canvas.SetTop(BallEllipse, BallMargin);
+
+        var angle = _bouncyRng.NextDouble() * Math.PI * 2;
+        var speed = 320 + _bouncyRng.NextDouble() * 160;
+        _bouncyVelocity = new Vector(Math.Cos(angle) * speed, Math.Sin(angle) * speed);
+        _bouncyAngularVelocity = (_bouncyRng.NextDouble() * 2 - 1) * 360;
+
+        _bouncyLastTick = DateTime.UtcNow;
+        _bouncyLastImpulse = DateTime.MinValue;
+
+        _bouncyTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _bouncyTimer.Tick += BouncyTimer_Tick;
+        _bouncyTimer.Start();
+
+        _bouncyTimeoutTimer = new DispatcherTimer
+        {
+            Interval = BouncyDuration
+        };
+        _bouncyTimeoutTimer.Tick += (s, e) =>
+        {
+            _settings.Update(st => st.BouncyBall = false);
+        };
+        _bouncyTimeoutTimer.Start();
+    }
+
+    private void StopBouncyBallMode(bool snapAfter)
+    {
+        if (!_bouncyActive) return;
+        _bouncyActive = false;
+
+        _bouncyTimer?.Stop();
+        _bouncyTimer = null;
+        _bouncyTimeoutTimer?.Stop();
+        _bouncyTimeoutTimer = null;
+
+        BallRotate.Angle = 0;
+        _bouncyVelocity = new Vector(0, 0);
+        _bouncyAngularVelocity = 0;
+
+        if (snapAfter)
+        {
+            RefreshBallSideFromPosition();
+            SnapToNearestEdge();
+        }
+    }
+
+    private void BouncyTimer_Tick(object? sender, EventArgs e)
+    {
+        var now = DateTime.UtcNow;
+        var dt = (now - _bouncyLastTick).TotalSeconds;
+        _bouncyLastTick = now;
+        if (dt <= 0 || dt > 0.1) dt = 1.0 / 60;
+
+        var src = PresentationSource.FromVisual(this);
+        double scaleX = 1, scaleY = 1;
+        if (src?.CompositionTarget != null)
+        {
+            scaleX = src.CompositionTarget.TransformFromDevice.M11;
+            scaleY = src.CompositionTarget.TransformFromDevice.M22;
+        }
+
+        var friction = Math.Pow(1.0 - BouncyFrictionPerSec, dt);
+        _bouncyVelocity *= friction;
+        _bouncyAngularVelocity *= Math.Pow(1.0 - BouncyAngularFrictionPerSec, dt);
+
+        var speed = _bouncyVelocity.Length;
+        if (speed < BouncyMinSpeed)
+        {
+            if (speed > 0.001)
+                _bouncyVelocity *= BouncyMinSpeed / speed;
+            else
+                _bouncyVelocity = new Vector(BouncyMinSpeed, 0);
+        }
+        else if (speed > BouncyMaxSpeed)
+        {
+            _bouncyVelocity *= BouncyMaxSpeed / speed;
+        }
+
+        if (now - _bouncyLastImpulse > BouncyImpulseCooldown)
+        {
+            var cursor = System.Windows.Forms.Cursor.Position;
+            var mouseX = cursor.X * scaleX;
+            var mouseY = cursor.Y * scaleY;
+
+            var ballCenterX = Left + BallMargin + BallSize / 2;
+            var ballCenterY = Top + BallMargin + BallSize / 2;
+            var dx = ballCenterX - mouseX;
+            var dy = ballCenterY - mouseY;
+            var dist = Math.Sqrt(dx * dx + dy * dy);
+            if (dist < BallSize)
+            {
+                var len = Math.Max(dist, 0.001);
+                var dir = new Vector(dx / len, dy / len);
+                _bouncyVelocity += dir * BouncyImpulse;
+                _bouncyAngularVelocity += (_bouncyRng.NextDouble() * 2 - 1) * 240;
+                _bouncyLastImpulse = now;
+            }
+        }
+
+        Left += _bouncyVelocity.X * dt;
+        Top += _bouncyVelocity.Y * dt;
+        BallRotate.Angle += _bouncyAngularVelocity * dt;
+
+        var screen = System.Windows.Forms.Screen.FromPoint(
+            new System.Drawing.Point((int)(Left + BallSlot / 2), (int)(Top + BallSlot / 2)));
+        var waLeft = screen.WorkingArea.Left * scaleX;
+        var waTop = screen.WorkingArea.Top * scaleY;
+        var waRight = screen.WorkingArea.Right * scaleX;
+        var waBottom = screen.WorkingArea.Bottom * scaleY;
+
+        if (Left < waLeft)
+        {
+            Left = waLeft;
+            _bouncyVelocity.X = Math.Abs(_bouncyVelocity.X) * BouncyRestitution;
+            _bouncyAngularVelocity = -_bouncyAngularVelocity * 0.85;
+        }
+        else if (Left + BallSlot > waRight)
+        {
+            Left = waRight - BallSlot;
+            _bouncyVelocity.X = -Math.Abs(_bouncyVelocity.X) * BouncyRestitution;
+            _bouncyAngularVelocity = -_bouncyAngularVelocity * 0.85;
+        }
+        if (Top < waTop)
+        {
+            Top = waTop;
+            _bouncyVelocity.Y = Math.Abs(_bouncyVelocity.Y) * BouncyRestitution;
+            _bouncyAngularVelocity = -_bouncyAngularVelocity * 0.85;
+        }
+        else if (Top + BallSlot > waBottom)
+        {
+            Top = waBottom - BallSlot;
+            _bouncyVelocity.Y = -Math.Abs(_bouncyVelocity.Y) * BouncyRestitution;
+            _bouncyAngularVelocity = -_bouncyAngularVelocity * 0.85;
+        }
+    }
+
     private void TogglePin()
     {
         _settings.Update(s => s.AlwaysShowPanel = !s.AlwaysShowPanel);
@@ -576,6 +768,7 @@ public partial class MainWindow : Window
     {
         if (_shutdownStarted) return;
         _shutdownStarted = true;
+        StopBouncyBallMode(snapAfter: false);
         await _moduleManager.DisposeAsync();
         _tray.Dispose();
         Application.Current.Shutdown();

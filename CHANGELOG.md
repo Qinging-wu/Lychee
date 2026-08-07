@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.0
+
+| Change | Detail |
+|---|---|
+| ??? | Nothing happened (?) |
+
 ## v1.3.0
 
 | Change | Detail |

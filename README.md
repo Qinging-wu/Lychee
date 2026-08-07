@@ -32,6 +32,7 @@ Each module can be toggled on/off individually in Settings.
 
 | Version | Change | Detail |
 |---|---|---|
+| v1.4.0 | ??? | Nothing happened (?) |
 | v1.3.0 | 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings). Note: it snaps to the working area edge — a ball snapped to the bottom rests above the taskbar, not at the physical screen edge |
 | v1.2.0 | 🖼️ Frame Performance | No longer experimental |
 

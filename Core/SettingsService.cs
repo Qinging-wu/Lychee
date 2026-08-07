@@ -9,6 +9,7 @@ public sealed class AppSettings
     public bool AlertOnIpChange { get; set; } = true;
     public bool ShowTrayIcon { get; set; } = true;
     public bool SnapToEdge { get; set; } = false;
+    public bool BouncyBall { get; set; } = false;
     public int FloatingBallSize { get; set; } = 56;
     public FrameMonitoringMode FrameMonitoringMode { get; set; } = FrameMonitoringMode.DesktopOutput;
     public Dictionary<string, bool> ModuleEnabled { get; set; } = new();
@@ -69,7 +70,9 @@ public sealed class SettingsService
         try
         {
             var json = File.ReadAllText(_path);
-            return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            settings.BouncyBall = false;
+            return settings;
         }
         catch
         {

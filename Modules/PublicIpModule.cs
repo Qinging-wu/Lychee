@@ -49,6 +49,9 @@ public sealed class PublicIpModule : InfoModuleBase
     private static readonly string GeoApiTemplate =
         "http://ip-api.com/json/{0}?lang=en&fields=status,query,country,regionName,city,isp,org,as&_={1}";
 
+    private static readonly string GeoIpOnlyUrl =
+        "http://ip-api.com/json/?lang=en&fields=status,query&_={0}";
+
     private PeriodicTimer? _timer;
     private Task? _loopTask;
     private CancellationTokenSource? _cts;
@@ -87,6 +90,72 @@ public sealed class PublicIpModule : InfoModuleBase
         if (commaCount >= 2 && digitCount >= 2) return true;
         if (s.StartsWith("AS") && s.Length <= 8) return true;
         return false;
+    }
+
+    private async Task<string?> QueryIpViaGeoAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var resp = await HttpClient.GetAsync(
+                string.Format(GeoIpOnlyUrl, DateTimeOffset.UtcNow.Ticks), ct);
+            if (!resp.IsSuccessStatusCode) return null;
+            var json = await resp.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("status", out var statusProp)
+                && statusProp.GetString() == "success"
+                && root.TryGetProperty("query", out var queryProp))
+            {
+                var ip = queryProp.GetString()?.Trim();
+                return string.IsNullOrEmpty(ip) ? null : ip;
+            }
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<string?> ResolveGeoDisplayAsync(string ip, CancellationToken ct)
+    {
+        try
+        {
+            using var resp = await HttpClient.GetAsync(
+                string.Format(GeoApiTemplate, ip, DateTimeOffset.UtcNow.Ticks), ct);
+            if (!resp.IsSuccessStatusCode) return null;
+            var json = await resp.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("status", out var statusProp)
+                || statusProp.GetString() != "success")
+            {
+                return null;
+            }
+
+            var country = root.TryGetProperty("country", out var c) ? c.GetString() ?? "" : "";
+            var region = root.TryGetProperty("regionName", out var r) ? r.GetString() ?? "" : "";
+            var city = root.TryGetProperty("city", out var ci) ? ci.GetString() ?? "" : "";
+            var isp = root.TryGetProperty("isp", out var i) ? i.GetString() ?? "" : "";
+            var org = root.TryGetProperty("org", out var o) ? o.GetString() ?? "" : "";
+            var asField = root.TryGetProperty("as", out var a) ? a.GetString() ?? "" : "";
+
+            var locationParts = new[] { country, region, city }
+                .Where(x => !string.IsNullOrWhiteSpace(x) && x != "N/A")
+                .Distinct();
+            var location = string.Join(" ", locationParts);
+
+            var carrier = PickCarrier(isp, org, asField);
+
+            var display = string.IsNullOrEmpty(location) ? ip : $"{ip}\n{location}";
+            if (!string.IsNullOrEmpty(carrier)) display += $"\n{carrier}";
+            return display;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public override void Start()
@@ -128,45 +197,17 @@ public sealed class PublicIpModule : InfoModuleBase
 
             if (string.IsNullOrEmpty(ip))
             {
+                // Ip-only endpoints are unreachable — fall back to ip-api.com,
+                // which also reports the caller's IP directly.
+                ip = await QueryIpViaGeoAsync(ct);
+            }
+
+            if (string.IsNullOrEmpty(ip))
+            {
                 throw new HttpRequestException("All endpoints unavailable");
             }
 
-            string display = ip;
-            try
-            {
-                using var resp = await HttpClient.GetAsync(string.Format(GeoApiTemplate, ip, DateTimeOffset.UtcNow.Ticks), ct);
-                if (resp.IsSuccessStatusCode)
-                {
-                    var json = await resp.Content.ReadAsStringAsync(ct);
-                    using var doc = JsonDocument.Parse(json);
-                    var root = doc.RootElement;
-
-                    if (root.TryGetProperty("status", out var statusProp)
-                        && statusProp.GetString() == "success")
-                    {
-                        var country = root.TryGetProperty("country", out var c) ? c.GetString() ?? "" : "";
-                        var region = root.TryGetProperty("regionName", out var r) ? r.GetString() ?? "" : "";
-                        var city = root.TryGetProperty("city", out var ci) ? ci.GetString() ?? "" : "";
-                        var isp = root.TryGetProperty("isp", out var i) ? i.GetString() ?? "" : "";
-                        var org = root.TryGetProperty("org", out var o) ? o.GetString() ?? "" : "";
-                        var asField = root.TryGetProperty("as", out var a) ? a.GetString() ?? "" : "";
-
-                        var locationParts = new[] { country, region, city }
-                            .Where(x => !string.IsNullOrWhiteSpace(x) && x != "N/A")
-                            .Distinct();
-                        var location = string.Join(" ", locationParts);
-
-                        var carrier = PickCarrier(isp, org, asField);
-
-                        display = string.IsNullOrEmpty(location) ? ip : $"{ip}\n{location}";
-                        if (!string.IsNullOrEmpty(carrier)) display += $"\n{carrier}";
-                    }
-                }
-            }
-            catch
-            {
-                // Geo lookup failure does not affect IP display
-            }
+            string display = await ResolveGeoDisplayAsync(ip, ct) ?? ip;
 
             if (!_firstQuery && _lastIp != null && _lastIp != ip)
             {
@@ -189,7 +230,7 @@ public sealed class PublicIpModule : InfoModuleBase
             {
                 1 => "Network error, retrying...",
                 _ when _consecutiveFailures <= 3 => $"Query failed (attempt {_consecutiveFailures})",
-                _ => "Query failed repeatedly; will retry later"
+                _ => "Query failed repeatedly; auto retry"
             };
         }
     }

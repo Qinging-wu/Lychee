@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.2
+
+| Change | Detail |
+|---|---|
+| 🛠️ Fix known issues | Public IP / Location now falls back to ip-api.com when ip-only endpoints are blocked, so it recovers on its own instead of showing a stuck failure |
+
 ## v1.4.1
 
 | Change | Detail |

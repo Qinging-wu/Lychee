@@ -4,7 +4,7 @@
 
 | Change | Detail |
 |---|---|
-| 🛠️ Fix known issues | Public IP / Location now falls back to ip-api.com when ip-only endpoints are blocked, so it recovers on its own instead of showing a stuck failure |
+| 🛠️ Fix known issues | Fixed a bug in Public IP/Location |
 
 ## v1.4.1
 

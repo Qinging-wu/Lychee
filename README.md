@@ -4,8 +4,6 @@ English | [简体中文](./README.zh-CN.md)
 
 A tiny always-on-top floating ball for Windows that shows CPU, memory, network speed, public IP, and latency at a glance. Hover to expand the info panel; move away to collapse. Built with .NET 8 WPF + WinForms. No installer, no admin rights, no background services.
 
-![screenshot](Assets/screenshot.png)
-
 Good for anyone who wants system stats visible without alt-tabbing to Task Manager — remote workers keeping an eye on VPN status, developers running long builds, or anyone who finds full system monitors too heavy.
 
 ## 🚀 Quick start

@@ -32,7 +32,7 @@ Each module can be toggled on/off individually in Settings.
 |---|---|---|
 | v2.0.0-beta.1 | 🚨 IP query alerts | Enhanced the IP module |
 | v1.4.0 | ??? | Nothing happened (?) |
-| v1.3.0 | 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings). Note: it snaps to the working area edge — a ball snapped to the bottom rests above the taskbar, not at the physical screen edge |
+| v1.3.0 | 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings) |
 | v1.2.0 | 🖼️ Frame Performance | No longer experimental |
 
 Full history: [CHANGELOG](./CHANGELOG.md)

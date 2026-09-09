@@ -30,7 +30,6 @@ Each module can be toggled on/off individually in Settings.
 
 | Version | Change | Detail |
 |---|---|---|
-| v2.0.0-beta.1 | 🚨 IP query alerts | Enhanced the IP module |
 | v1.4.0 | ??? | Nothing happened (?) |
 | v1.3.0 | 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings) |
 | v1.2.0 | 🖼️ Frame Performance | No longer experimental |

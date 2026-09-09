@@ -15,7 +15,7 @@ public partial class MainWindow : Window
     private const double BallSize = 48;
     private const double BallMargin = 4;
     private const double BallSlot = 56;          // total window size occupied by the ball (incl. margins)
-    private const double PanelWidth = 240;
+    private const double PanelWidth = 260;
     private const double PanelMargin = 4;
 
     private const int GWL_EXSTYLE = -20;
@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private bool _isExpanded = false;
     private bool _isHoveringBall = false;
     private SettingsWindow? _settingsWindow;
+    private Window? _alertToast;
     private bool _shutdownStarted;
 
     private bool _isRightSide = true;
@@ -92,6 +93,8 @@ public partial class MainWindow : Window
         if (_moduleManager.Get("public-ip") is PublicIpModule ipModule)
         {
             ipModule.IpChanged += OnIpChanged;
+            ipModule.QueryFailed += OnIpQueryFailed;
+            ipModule.QueryRecovered += OnIpQueryRecovered;
         }
 
         _moduleManager.ValueChanged += (s, e) => Dispatcher.Invoke(RefreshModuleList);
@@ -799,8 +802,57 @@ public partial class MainWindow : Window
         });
     }
 
+    private void OnIpQueryFailed(object? sender, QueryFailedEventArgs e)
+    {
+        if (!_settings.Current.AlertOnQueryFailure) return;
+
+        Dispatcher.Invoke(() =>
+        {
+            _tray.ShowBalloon(
+                "Public IP Query Failed",
+                $"{e.Message}\nNetwork may be down or VPN dropped.",
+                System.Windows.Forms.ToolTipIcon.Error);
+            ShowAlertToast(
+                "Public IP Query Failed",
+                e.Message,
+                "Network may be down or VPN dropped.");
+        });
+    }
+
+    private void OnIpQueryRecovered(object? sender, QueryRecoveredEventArgs e)
+    {
+        if (!_settings.Current.AlertOnQueryFailure) return;
+
+        Dispatcher.Invoke(() =>
+        {
+            _tray.ShowBalloon(
+                "Network Recovered",
+                $"Public IP: {e.Ip}",
+                System.Windows.Forms.ToolTipIcon.Info);
+            var displayLines = e.Display.Split('\n');
+            displayLines[0] = $"IP: {displayLines[0]}";
+            ShowAlertToast(
+                "Network Recovered",
+                System.Windows.Media.Color.FromArgb(0xF2, 0x2E, 0xCC, 0x71),
+                displayLines);
+        });
+    }
+
     private void ShowIpChangeToast(string oldIp, string newIp)
     {
+        ShowAlertToast("Public IP Changed", $"Old: {oldIp}", $"New: {newIp}");
+    }
+
+    private void ShowAlertToast(string title, params string[] lines)
+    {
+        ShowAlertToast(title, null, lines);
+    }
+
+    private void ShowAlertToast(string title, System.Windows.Media.Color? background, params string[] lines)
+    {
+        _alertToast?.Close();
+        _alertToast = null;
+
         var toast = new Window
         {
             Width = 320,
@@ -817,7 +869,7 @@ public partial class MainWindow : Window
         var border = new Border
         {
             Background = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromArgb(0xF2, 0xE8, 0x4D, 0x3D)),
+                background ?? System.Windows.Media.Color.FromArgb(0xF2, 0xE8, 0x4D, 0x3D)),
             CornerRadius = new CornerRadius(10),
             Padding = new Thickness(14),
             Margin = new Thickness(6)
@@ -825,37 +877,39 @@ public partial class MainWindow : Window
         var stack = new StackPanel();
         stack.Children.Add(new TextBlock
         {
-            Text = "Public IP Changed",
+            Text = title,
             Foreground = System.Windows.Media.Brushes.White,
             FontWeight = FontWeights.Bold,
             FontSize = 14,
             Margin = new Thickness(0, 0, 0, 6)
         });
-        stack.Children.Add(new TextBlock
+        foreach (var line in lines)
         {
-            Text = $"Old: {oldIp}",
-            Foreground = System.Windows.Media.Brushes.White,
-            FontSize = 12
-        });
-        stack.Children.Add(new TextBlock
-        {
-            Text = $"New: {newIp}",
-            Foreground = System.Windows.Media.Brushes.White,
-            FontSize = 12
-        });
+            stack.Children.Add(new TextBlock
+            {
+                Text = line,
+                Foreground = System.Windows.Media.Brushes.White,
+                FontSize = 12
+            });
+        }
         border.Child = stack;
         toast.Content = border;
 
         var area = SystemParameters.WorkArea;
         toast.Left = area.Right - toast.Width - 16;
         toast.Top = area.Bottom - toast.Height - 16;
+        _alertToast = toast;
         toast.Show();
 
         var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(400))
         {
             BeginTime = TimeSpan.FromSeconds(5)
         };
-        fadeOut.Completed += (s, e) => toast.Close();
+        fadeOut.Completed += (s, e) =>
+        {
+            toast.Close();
+            if (_alertToast == toast) _alertToast = null;
+        };
         toast.BeginAnimation(OpacityProperty, fadeOut);
     }
 

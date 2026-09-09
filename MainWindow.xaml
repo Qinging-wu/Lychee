@@ -18,7 +18,7 @@
     </Window.Resources>
     <Canvas x:Name="RootCanvas" ClipToBounds="True">
         <!-- Info panel (position set from code) -->
-        <Border x:Name="PanelBorder" Canvas.Left="0" Canvas.Top="4" Width="240"
+        <Border x:Name="PanelBorder" Canvas.Left="0" Canvas.Top="4" Width="260"
                 Background="#E61E1E2E" CornerRadius="12" Visibility="Collapsed">
             <DockPanel LastChildFill="True" Margin="6">
                 <Border DockPanel.Dock="Top" Background="#33FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,0,0,6">
@@ -56,9 +56,9 @@
                                                 <TextBlock Text="{Binding DisplayName}" Foreground="#FFCCCCCC" FontSize="11"/>
                                             </DockPanel>
                                             <TextBlock Text="{Binding CurrentValue}" Foreground="White" FontSize="13"
-                                                       TextWrapping="Wrap" Margin="0,3,0,0" LineHeight="18"/>
+                                                       TextWrapping="Wrap" Margin="0,3,0,0"/>
                                             <TextBlock Text="{Binding Detail}" Foreground="#FF8F8F9F" FontSize="10"
-                                                       TextWrapping="Wrap" Margin="0,4,0,0" LineHeight="14">
+                                                       TextWrapping="Wrap" Margin="0,4,0,0">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Visible"/>

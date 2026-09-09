@@ -30,6 +30,7 @@ Each module can be toggled on/off individually in Settings.
 
 | Version | Change | Detail |
 |---|---|---|
+| v2.0.0-beta.1 | 🚨 IP query alerts | Alerts on public IP query failure (possible network/VPN outage) and a green recovery toast showing the restored IP — toggle in Settings |
 | v1.4.0 | ??? | Nothing happened (?) |
 | v1.3.0 | 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings). Note: it snaps to the working area edge — a ball snapped to the bottom rests above the taskbar, not at the physical screen edge |
 | v1.2.0 | 🖼️ Frame Performance | No longer experimental |
@@ -161,6 +162,7 @@ _moduleManager.RegisterModule(new WeatherModule());
 {
   "AlwaysShowPanel": false,
   "AlertOnIpChange": true,
+  "AlertOnQueryFailure": true,
   "ShowTrayIcon": true,
   "SnapToEdge": false,
   "FloatingBallSize": 56,

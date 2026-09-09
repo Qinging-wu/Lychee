@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.0.0-beta.1
+
+| Change | Detail |
+|---|---|
+| 🚨 IP query failure alert | Red toast + tray balloon when the public IP query fails (notifies once on the first failure and again on repeated failures), hinting at a possible network/VPN outage; toggle in Settings |
+| 🟢 Network recovery toast | Green toast with the recovered public IP once the query succeeds again; governed by the same toggle |
+
 ## v1.4.2
 
 | Change | Detail |

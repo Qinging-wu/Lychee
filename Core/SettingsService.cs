@@ -7,6 +7,7 @@ public sealed class AppSettings
 {
     public bool AlwaysShowPanel { get; set; } = false;
     public bool AlertOnIpChange { get; set; } = true;
+    public bool AlertOnQueryFailure { get; set; } = true;
     public bool ShowTrayIcon { get; set; } = true;
     public bool SnapToEdge { get; set; } = false;
     public bool BouncyBall { get; set; } = false;

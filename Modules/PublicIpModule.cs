@@ -61,7 +61,13 @@ public sealed class PublicIpModule : InfoModuleBase
 
     public TimeSpan QueryInterval { get; set; } = TimeSpan.FromSeconds(20);
 
+    private const int RepeatedFailureNotifyAfter = 4;
+
     public event EventHandler<IpChangedEventArgs>? IpChanged;
+
+    public event EventHandler<QueryFailedEventArgs>? QueryFailed;
+
+    public event EventHandler<QueryRecoveredEventArgs>? QueryRecovered;
 
     public PublicIpModule()
     {
@@ -214,10 +220,16 @@ public sealed class PublicIpModule : InfoModuleBase
                 IpChanged?.Invoke(this, new IpChangedEventArgs(_lastIp, ip));
             }
 
+            var recovered = _consecutiveFailures > 0;
             _lastIp = ip;
             _firstQuery = false;
             _consecutiveFailures = 0;
             CurrentValue = display;
+
+            if (recovered)
+            {
+                QueryRecovered?.Invoke(this, new QueryRecoveredEventArgs(ip, display));
+            }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -232,6 +244,11 @@ public sealed class PublicIpModule : InfoModuleBase
                 _ when _consecutiveFailures <= 3 => $"Query failed (attempt {_consecutiveFailures})",
                 _ => "Query failed repeatedly; auto retry"
             };
+
+            if (_consecutiveFailures == 1 || _consecutiveFailures == RepeatedFailureNotifyAfter)
+            {
+                QueryFailed?.Invoke(this, new QueryFailedEventArgs(_consecutiveFailures, CurrentValue));
+            }
         }
     }
 

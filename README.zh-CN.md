@@ -30,6 +30,7 @@
 
 | 版本 | 变更 | 说明 |
 |---|---|---|
+| v2.0.0-beta.1 | 🚨 IP 查询告警 | 公网 IP 查询失败时告警（可能是断网或 VPN 异常），恢复后弹出绿色 Toast 并显示恢复后的 IP；可在设置中开关 |
 | v1.4.0 | ??? | 什么都没有发生 (?) |
 | v1.3.0 | 🧲 吸附边缘 | 拖拽结束后悬浮球自动吸附到最近的屏幕边缘（可在设置中开关）。注意：吸附的是工作区边缘，吸附到底部时悬浮球停在任务栏上方，而非屏幕物理边缘 |
 | v1.2.0 | 🖼️ 帧性能 | 不再是实验性功能 |
@@ -161,6 +162,7 @@ _moduleManager.RegisterModule(new WeatherModule());
 {
   "AlwaysShowPanel": false,
   "AlertOnIpChange": true,
+  "AlertOnQueryFailure": true,
   "ShowTrayIcon": true,
   "SnapToEdge": false,
   "FloatingBallSize": 56,

@@ -21,6 +21,7 @@ public partial class SettingsWindow : Window
 
         AlwaysShowCheckBox.IsChecked = _settings.Current.AlwaysShowPanel;
         AlertIpCheckBox.IsChecked = _settings.Current.AlertOnIpChange;
+        AlertQueryFailCheckBox.IsChecked = _settings.Current.AlertOnQueryFailure;
         SnapCheckBox.IsChecked = _settings.Current.SnapToEdge;
         BouncyBallCheckBox.IsChecked = _settings.Current.BouncyBall;
         FrameModeComboBox.SelectedIndex = _settings.Current.FrameMonitoringMode == FrameMonitoringMode.ForegroundApplication
@@ -39,6 +40,11 @@ public partial class SettingsWindow : Window
     private void AlertIp_Changed(object sender, RoutedEventArgs e)
     {
         _settings.Update(s => s.AlertOnIpChange = AlertIpCheckBox.IsChecked == true);
+    }
+
+    private void AlertQueryFail_Changed(object sender, RoutedEventArgs e)
+    {
+        _settings.Update(s => s.AlertOnQueryFailure = AlertQueryFailCheckBox.IsChecked == true);
     }
 
     private void Snap_Changed(object sender, RoutedEventArgs e)

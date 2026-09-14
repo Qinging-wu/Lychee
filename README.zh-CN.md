@@ -183,6 +183,14 @@ _moduleManager.RegisterModule(new WeatherModule());
 - 归属地查询不可用时，公网 IP 可能仅显示数字本身（无城市/国家信息）
 - 部分杀毒软件可能将 Lychee.exe 误判为病毒，原因是使用了 P/Invoke、COM 互操作以及内置的 PresentMon 工具。源代码完全开源，可以自行审查和编译，或在杀软中添加排除项
 
+## 🤝 社区与贡献
+
+- [贡献指南](./CONTRIBUTING.md)
+- [行为准则](./CODE_OF_CONDUCT.md)
+- [安全策略](./SECURITY.md)
+
 ## 📄 许可证
 
-MIT
+Lychee 使用 [MIT 许可证](./LICENSE) 发布。
+
+内置的 PresentMon 组件使用其自身的许可证发布，详见 [PresentMon-LICENSE.txt](./publish/PresentMon-LICENSE.txt)。

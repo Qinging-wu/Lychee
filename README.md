@@ -183,6 +183,14 @@ _moduleManager.RegisterModule(new WeatherModule());
 - Public IP may show as IP-only (no city/country) when the geo lookup returns empty
 - Some antivirus software may flag Lychee.exe as a false positive due to P/Invoke, COM interop, and the bundled PresentMon tool. The source code is fully open — you can inspect and build it yourself, or add an exclusion for Lychee if needed
 
+## 🤝 Community
+
+- [Contributing guide](./CONTRIBUTING.md)
+- [Code of Conduct](./CODE_OF_CONDUCT.md)
+- [Security policy](./SECURITY.md)
+
 ## 📄 License
 
-MIT
+Lychee is licensed under the [MIT License](./LICENSE).
+
+The bundled PresentMon component is distributed under its own license. See [PresentMon-LICENSE.txt](./publish/PresentMon-LICENSE.txt).

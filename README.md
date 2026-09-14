@@ -26,6 +26,15 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 
 Each module can be toggled on/off individually in Settings.
 
+### Frame Performance modes
+
+Frame Performance has two modes:
+
+- **Desktop output** — samples the Windows DWM composition cadence. It does not require PresentMon.
+- **Foreground app** — uses the bundled `PresentMon_x64.exe` to capture frame presents from the selected application. Keep `Lychee.exe` and `PresentMon_x64.exe` in the same directory when using a release build.
+
+Foreground app mode requires administrator privileges or membership in the Windows `Performance Log Users` group. If the bundled executable is not found, Lychee can only use a compatible PresentMon installation found in the NVIDIA FrameView or Intel PresentMon directories; otherwise the mode reports that PresentMon was not found. The bundled executable is excluded from single-file embedding and must remain a separate file.
+
 ### What's new
 
 | Version | Change | Detail |

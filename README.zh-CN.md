@@ -26,6 +26,15 @@
 
 每个模块都可以在设置中单独开关。
 
+### 帧性能模式
+
+帧性能功能包含两种模式：
+
+- **桌面输出** — 通过 Windows DWM 合成节奏采样，不需要 PresentMon。
+- **前台应用** — 使用内置的 `PresentMon_x64.exe` 采集所选应用的帧呈现数据。使用发布版时，请将 `Lychee.exe` 和 `PresentMon_x64.exe` 放在同一目录下。
+
+前台应用模式需要管理员权限，或将当前用户加入 Windows 的 `Performance Log Users` 组。如果找不到内置 EXE，Lychee 还会尝试使用 NVIDIA FrameView 或 Intel PresentMon 目录中的兼容版本；如果仍未找到，前台应用模式会提示 PresentMon 不存在。该 EXE 不会嵌入单文件程序，必须作为独立文件保留。
+
 ### 更新内容
 
 | 版本 | 变更 | 说明 |

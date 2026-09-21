@@ -6,6 +6,10 @@ A tiny always-on-top floating ball for Windows that shows CPU, memory, network s
 
 Good for anyone who wants system stats visible without alt-tabbing to Task Manager — remote workers keeping an eye on VPN status, developers running long builds, or anyone who finds full system monitors too heavy.
 
+## 🍎 macOS version
+
+Lychee also has a separate macOS sibling: [Lychee4MacOS](https://github.com/Qinging-wu/Lychee4MacOS). It keeps the same floating-ball concept and core monitoring modules, using .NET 8 + Avalonia UI for macOS. The macOS port is independently versioned and currently runs from source or a self-contained command-line publish; it does not yet provide a `.app`, `.dmg`, or `.pkg` installer.
+
 ## 🚀 Quick start
 
 Download `Lychee.exe` from [Releases](https://github.com/Qinging-wu/Lychee/releases), double-click to run. That's it — no installer, no admin rights needed. If the browser warns about the EXE, try the `Lychee-v*.zip` instead — it usually works.

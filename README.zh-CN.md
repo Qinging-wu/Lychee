@@ -6,6 +6,10 @@
 
 适合不想 alt-tab 切任务管理器看系统状态的用户——远程办公盯 VPN 状态、开发者跑长任务、或者单纯觉得完整系统监视器太重的人。
 
+## 🍎 macOS 版本
+
+Lychee 另有独立的 macOS 姊妹仓库：[Lychee4MacOS](https://github.com/Qinging-wu/Lychee4MacOS)。它保留了悬浮球和主要系统监控模块，使用 .NET 8 + Avalonia UI 适配 macOS。macOS 版本独立维护和发布，目前支持从源码运行或通过命令行发布自包含可执行文件，暂未提供 `.app`、`.dmg` 或 `.pkg` 安装包。
+
 ## 🚀 快速开始
 
 从 [Releases](https://github.com/Qinging-wu/Lychee/releases) 下载 `Lychee.exe`，双击运行。无需安装，无需管理员权限。如果浏览器拦截 EXE 下载，可以尝试 `Lychee-v*.zip`，通常可以正常下载。

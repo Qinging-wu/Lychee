@@ -12,19 +12,19 @@
 
 也可以用一行命令安装（Windows 10+，安装到 `%LOCALAPPDATA%\Lychee` 并创建开始菜单快捷方式）。
 
-**PowerShell**（推荐）：
+**PowerShell：**
 
 ```powershell
 irm https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 | iex
 ```
 
-**PowerShell + curl**（必须写 `curl.exe`——PowerShell 里 `curl` 是 `Invoke-WebRequest` 的别名）：
+**PowerShell + curl：**
 
 ```powershell
 curl.exe -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 -o "$env:TEMP\lychee-install.ps1"; if ($?) { powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\lychee-install.ps1" }
 ```
 
-**cmd**（`&&` 和 curl 参数只在 cmd 有效，请勿粘贴到 PowerShell）：
+**cmd：**
 
 ```bat
 curl -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 -o "%TEMP%\lychee-install.ps1" && powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\lychee-install.ps1"

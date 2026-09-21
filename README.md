@@ -12,19 +12,19 @@ Download `Lychee.exe` from [Releases](https://github.com/Qinging-wu/Lychee/relea
 
 Or install with a one-liner (Windows 10+, installs to `%LOCALAPPDATA%\Lychee` and creates a Start Menu shortcut).
 
-**PowerShell** (recommended):
+**PowerShell:**
 
 ```powershell
 irm https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 | iex
 ```
 
-**PowerShell with curl** (must be `curl.exe` — plain `curl` is an alias for `Invoke-WebRequest` in PowerShell):
+**PowerShell with curl:**
 
 ```powershell
 curl.exe -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 -o "$env:TEMP\lychee-install.ps1"; if ($?) { powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\lychee-install.ps1" }
 ```
 
-**cmd** (`&&` and curl flags only work in cmd — do not paste this into PowerShell):
+**cmd:**
 
 ```bat
 curl -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 -o "%TEMP%\lychee-install.ps1" && powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\lychee-install.ps1"

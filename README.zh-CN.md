@@ -10,15 +10,23 @@
 
 从 [Releases](https://github.com/Qinging-wu/Lychee/releases) 下载 `Lychee.exe`，双击运行。无需安装，无需管理员权限。如果浏览器拦截 EXE 下载，可以尝试 `Lychee-v*.zip`，通常可以正常下载。
 
-也可以用一行命令安装（Windows 10+，安装到 `%LOCALAPPDATA%\Lychee` 并创建开始菜单快捷方式）：
+也可以用一行命令安装（Windows 10+，安装到 `%LOCALAPPDATA%\Lychee` 并创建开始菜单快捷方式）。
+
+**PowerShell**（推荐）：
 
 ```powershell
-# PowerShell
 irm https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 | iex
 ```
 
+**PowerShell + curl**（必须写 `curl.exe`——PowerShell 里 `curl` 是 `Invoke-WebRequest` 的别名）：
+
+```powershell
+curl.exe -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 -o "$env:TEMP\lychee-install.ps1"; if ($?) { powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\lychee-install.ps1" }
+```
+
+**cmd**（`&&` 和 curl 参数只在 cmd 有效，请勿粘贴到 PowerShell）：
+
 ```bat
-:: cmd（Windows 10 1803+ 自带 curl.exe）
 curl -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 -o "%TEMP%\lychee-install.ps1" && powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\lychee-install.ps1"
 ```
 

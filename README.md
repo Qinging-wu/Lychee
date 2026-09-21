@@ -10,15 +10,23 @@ Good for anyone who wants system stats visible without alt-tabbing to Task Manag
 
 Download `Lychee.exe` from [Releases](https://github.com/Qinging-wu/Lychee/releases), double-click to run. That's it — no installer, no admin rights needed. If the browser warns about the EXE, try the `Lychee-v*.zip` instead — it usually works.
 
-Or install with a one-liner (Windows 10+, installs to `%LOCALAPPDATA%\Lychee` and creates a Start Menu shortcut):
+Or install with a one-liner (Windows 10+, installs to `%LOCALAPPDATA%\Lychee` and creates a Start Menu shortcut).
+
+**PowerShell** (recommended):
 
 ```powershell
-# PowerShell
 irm https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 | iex
 ```
 
+**PowerShell with curl** (must be `curl.exe` — plain `curl` is an alias for `Invoke-WebRequest` in PowerShell):
+
+```powershell
+curl.exe -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 -o "$env:TEMP\lychee-install.ps1"; if ($?) { powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\lychee-install.ps1" }
+```
+
+**cmd** (`&&` and curl flags only work in cmd — do not paste this into PowerShell):
+
 ```bat
-:: cmd (curl.exe ships with Windows 10 1803+)
 curl -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 -o "%TEMP%\lychee-install.ps1" && powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\lychee-install.ps1"
 ```
 

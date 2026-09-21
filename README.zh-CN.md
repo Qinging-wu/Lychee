@@ -82,6 +82,14 @@ curl -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 
 
 公网 IP 发生变化时（可能是 VPN 掉线或网络切换），右下角弹出红色提醒并显示托盘气泡，标明新旧 IP。
 
+## ⭐ Star History
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date&theme=dark" />
+  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date" />
+  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date" />
+</picture>
+
 ## 🔧 构建
 
 需要 .NET SDK 8.0+（包含 WPF + WinForms 工作负载）。
@@ -221,14 +229,6 @@ _moduleManager.RegisterModule(new WeatherModule());
 - [贡献指南](./CONTRIBUTING.md)
 - [行为准则](./CODE_OF_CONDUCT.md)
 - [安全策略](./SECURITY.md)
-
-## ⭐ Star History
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date&theme=dark" />
-  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date" />
-  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date" />
-</picture>
 
 ## 📄 许可证
 

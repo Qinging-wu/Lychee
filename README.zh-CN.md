@@ -222,6 +222,14 @@ _moduleManager.RegisterModule(new WeatherModule());
 - [行为准则](./CODE_OF_CONDUCT.md)
 - [安全策略](./SECURITY.md)
 
+## ⭐ Star History
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date&theme=dark" />
+  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date" />
+  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date" />
+</picture>
+
 ## 📄 许可证
 
 Lychee 使用 [MIT 许可证](./LICENSE) 发布。

@@ -82,6 +82,14 @@ Full history: [CHANGELOG](./CHANGELOG.md)
 
 When the public IP changes (possible VPN drop or network switch), a red toast pops up in the bottom-right corner with a tray balloon showing old and new IPs.
 
+## ⭐ Star History
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date&theme=dark" />
+  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date" />
+  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date" />
+</picture>
+
 ## 🔧 Build
 
 Requires .NET SDK 8.0+ with WPF and WinForms workloads.
@@ -221,14 +229,6 @@ _moduleManager.RegisterModule(new WeatherModule());
 - [Contributing guide](./CONTRIBUTING.md)
 - [Code of Conduct](./CODE_OF_CONDUCT.md)
 - [Security policy](./SECURITY.md)
-
-## ⭐ Star History
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date&theme=dark" />
-  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date" />
-  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Qinging-wu/Lychee&type=Date" />
-</picture>
 
 ## 📄 License
 

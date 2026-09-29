@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.0.0-beta.2
+
+| Change | Detail |
+|---|---|
+| 🔊 Audio meter | Live output level from the default audio device, shown as a percentage, dBFS value, and meter bar |
+| 🎨 Floating ball styles | Choose built-in styles or import a custom PNG, JPEG, BMP, or animated GIF image |
+| ↔️ Resizable panel | Resize the expanded panel by dragging its outer edges or corners; the floating ball and glow stay aligned |
+
 ## v2.0.0-beta.1
 
 | Change | Detail |

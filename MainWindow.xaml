@@ -9,9 +9,10 @@
         Topmost="True"
         ShowInTaskbar="False"
         ShowActivated="False"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         WindowStartupLocation="Manual"
         SourceInitialized="Window_SourceInitialized"
+        SizeChanged="Window_SizeChanged"
         Deactivated="Window_Deactivated">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
@@ -57,6 +58,42 @@
                                             </DockPanel>
                                             <TextBlock Text="{Binding CurrentValue}" Foreground="White" FontSize="13"
                                                        TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                            <Border Height="12" Margin="0,8,0,1" CornerRadius="6" ClipToBounds="True"
+                                                    Background="#6610121D" ToolTip="{Binding Detail}">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Id}" Value="audio-meter">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid>
+                                                    <Border CornerRadius="6" RenderTransformOrigin="0,0.5">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleX="{Binding Progress, TargetNullValue=0, Mode=OneWay}"/>
+                                                        </Border.RenderTransform>
+                                                        <Border.Background>
+                                                            <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                                                <GradientStop Color="#FF57D38C" Offset="0"/>
+                                                                <GradientStop Color="#FFB5DE56" Offset="0.56"/>
+                                                                <GradientStop Color="#FFFFC857" Offset="0.76"/>
+                                                                <GradientStop Color="#FFF85556" Offset="1"/>
+                                                            </LinearGradientBrush>
+                                                        </Border.Background>
+                                                        <Border.OpacityMask>
+                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0.0833,0" SpreadMethod="Repeat">
+                                                                <GradientStop Color="White" Offset="0"/>
+                                                                <GradientStop Color="White" Offset="0.55"/>
+                                                                <GradientStop Color="Transparent" Offset="0.55"/>
+                                                                <GradientStop Color="Transparent" Offset="1"/>
+                                                            </LinearGradientBrush>
+                                                        </Border.OpacityMask>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
                                             <TextBlock Text="{Binding Detail}" Foreground="#FF8F8F9F" FontSize="10"
                                                        TextWrapping="Wrap" Margin="0,4,0,0">
                                                 <TextBlock.Style>

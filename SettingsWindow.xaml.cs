@@ -1,8 +1,10 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Security.Principal;
 using System.Windows;
 using System.Windows.Controls;
+using Win32OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using Lychee.Core;
 
 namespace Lychee;
@@ -24,6 +26,7 @@ public partial class SettingsWindow : Window
         AlertQueryFailCheckBox.IsChecked = _settings.Current.AlertOnQueryFailure;
         SnapCheckBox.IsChecked = _settings.Current.SnapToEdge;
         BouncyBallCheckBox.IsChecked = _settings.Current.BouncyBall;
+        RefreshBallStyles();
         FrameModeComboBox.SelectedIndex = _settings.Current.FrameMonitoringMode == FrameMonitoringMode.ForegroundApplication
             ? 1
             : 0;
@@ -57,6 +60,53 @@ public partial class SettingsWindow : Window
         var enabled = BouncyBallCheckBox.IsChecked == true;
         _settings.Update(s => s.BouncyBall = enabled);
         if (enabled) Close();
+    }
+
+    private void BallStyle_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_isInitialized || BallStyleComboBox.SelectedValue is not string styleId) return;
+        _settings.Update(settings => settings.FloatingBallStyle = styleId);
+    }
+
+    private void ImportBallImage_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Win32OpenFileDialog
+        {
+            Title = "Import floating ball image",
+            Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (dialog.ShowDialog(this) != true) return;
+
+        try
+        {
+            var directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Lychee");
+            Directory.CreateDirectory(directory);
+            var extension = Path.GetExtension(dialog.FileName);
+            var destination = Path.Combine(directory, $"custom-ball-{Guid.NewGuid():N}{extension}");
+            File.Copy(dialog.FileName, destination);
+            _settings.Update(settings =>
+            {
+                settings.CustomBallImagePath = destination;
+                settings.FloatingBallStyle = FloatingBallStyles.CustomId;
+            });
+            RefreshBallStyles();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Unable to import image:\n{ex.Message}", "Import failed",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void RefreshBallStyles()
+    {
+        var customPath = _settings.Current.CustomBallImagePath;
+        BallStyleComboBox.ItemsSource = FloatingBallStyles.GetAvailable(customPath);
+        BallStyleComboBox.SelectedValue = FloatingBallStyles.Get(
+            _settings.Current.FloatingBallStyle, customPath).Id;
     }
 
     private void FrameMode_Changed(object sender, SelectionChangedEventArgs e)

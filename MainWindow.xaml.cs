@@ -1,9 +1,12 @@
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Lychee.Core;
 using Lychee.Modules;
@@ -19,6 +22,8 @@ public partial class MainWindow : Window
     private const double PanelMargin = 4;
 
     private const int GWL_EXSTYLE = -20;
+    private const int GWL_STYLE = -16;
+    private const int WS_THICKFRAME = 0x00040000;
     private const int WS_EX_TOPMOST = 0x00000008;
     private const int WS_EX_NOACTIVATE = 0x08000000;
     private const int WS_EX_TOOLWINDOW = 0x00000080;
@@ -26,6 +31,10 @@ public partial class MainWindow : Window
     private const int SWP_NOSIZE = 0x0001;
     private const int SWP_NOACTIVATE = 0x0010;
     private const int SWP_SHOWWINDOW = 0x0040;
+    private const int WM_NCHITTEST = 0x0084;
+    private const int HTLEFT = 10, HTRIGHT = 11, HTTOP = 12, HTTOPLEFT = 13, HTTOPRIGHT = 14;
+    private const int HTBOTTOM = 15, HTBOTTOMLEFT = 16, HTBOTTOMRIGHT = 17;
+    private const int ResizeBorder = 8;
     private static readonly IntPtr HWND_TOPMOST = new(-1);
 
     [DllImport("user32.dll")]
@@ -36,6 +45,12 @@ public partial class MainWindow : Window
 
     [DllImport("user32.dll")]
     private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hWnd, out NativeRect rect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect { public int Left, Top, Right, Bottom; }
 
     private readonly SettingsService _settings;
     private readonly ModuleManager _moduleManager;
@@ -62,6 +77,10 @@ public partial class MainWindow : Window
     private bool _bouncyActive;
     private DispatcherTimer? _bouncyTimer;
     private DispatcherTimer? _bouncyTimeoutTimer;
+    private DispatcherTimer? _ballGifTimer;
+    private IReadOnlyList<BitmapFrame>? _ballGifFrames;
+    private IReadOnlyList<TimeSpan>? _ballGifFrameDelays;
+    private int _ballGifFrameIndex;
     private DateTime _bouncyLastTick;
     private Vector _bouncyVelocity;
     private double _bouncyAngularVelocity;
@@ -89,6 +108,7 @@ public partial class MainWindow : Window
         _moduleManager.RegisterModule(new MemoryModule());
         _moduleManager.RegisterModule(new LatencyModule());
         _moduleManager.RegisterModule(new FpsModule(_settings, GetActiveDisplayDeviceName));
+        _moduleManager.RegisterModule(new AudioMeterModule());
 
         if (_moduleManager.Get("public-ip") is PublicIpModule ipModule)
         {
@@ -116,6 +136,7 @@ public partial class MainWindow : Window
         _hoverTimer.Start();
 
         RefreshModuleList();
+        ApplyBallStyle();
     }
 
     public void StartModules() => _moduleManager.StartAll();
@@ -146,6 +167,7 @@ public partial class MainWindow : Window
     private void ApplySettings()
     {
         var s = _settings.Current;
+        ApplyBallStyle();
 
         if (s.BouncyBall)
         {
@@ -173,11 +195,128 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ApplyBallStyle()
+    {
+        _ballGifTimer?.Stop();
+        _ballGifTimer = null;
+        _ballGifFrames = null;
+        _ballGifFrameDelays = null;
+        _ballGifFrameIndex = 0;
+
+        var style = FloatingBallStyles.Get(
+            _settings.Current.FloatingBallStyle,
+            _settings.Current.CustomBallImagePath);
+
+        var isCustom = style.Id == FloatingBallStyles.CustomId;
+        var imageUri = isCustom
+            ? new Uri(style.ResourcePath, UriKind.Absolute)
+            : new Uri($"pack://application:,,,/{style.ResourcePath}", UriKind.Absolute);
+        BitmapSource imageSource;
+        if (string.Equals(Path.GetExtension(style.ResourcePath), ".gif", StringComparison.OrdinalIgnoreCase))
+        {
+            Stream stream;
+            if (isCustom)
+            {
+                stream = File.OpenRead(style.ResourcePath);
+            }
+            else
+            {
+                stream = Application.GetResourceStream(imageUri)?.Stream
+                    ?? throw new FileNotFoundException($"Unable to load floating ball image: {style.ResourcePath}");
+            }
+
+            using (stream)
+            {
+                var decoder = new GifBitmapDecoder(stream,
+                    BitmapCreateOptions.PreservePixelFormat,
+                    BitmapCacheOption.OnLoad);
+                var frames = decoder.Frames.ToList();
+                foreach (var frame in frames)
+                {
+                    if (frame.CanFreeze) frame.Freeze();
+                }
+                _ballGifFrames = frames;
+                _ballGifFrameDelays = frames.Select(GetGifFrameDelay).ToList();
+                imageSource = _ballGifFrames[0];
+
+                if (_ballGifFrames.Count > 1)
+                {
+                    _ballGifTimer = new DispatcherTimer(DispatcherPriority.Background)
+                    {
+                        Interval = _ballGifFrameDelays[0]
+                    };
+                    _ballGifTimer.Tick += BallGifTimer_Tick;
+                    _ballGifTimer.Start();
+                }
+            }
+        }
+        else if (isCustom)
+        {
+            var bitmap = new BitmapImage();
+            using (var stream = File.OpenRead(style.ResourcePath))
+            {
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
+                bitmap.StreamSource = stream;
+                bitmap.EndInit();
+            }
+            if (bitmap.CanFreeze) bitmap.Freeze();
+            imageSource = bitmap;
+        }
+        else
+        {
+            imageSource = new BitmapImage(imageUri);
+        }
+
+        RenderOptions.SetBitmapScalingMode(BallEllipse,
+            style.Id == FloatingBallStyles.PixelLycheeId
+                ? BitmapScalingMode.NearestNeighbor
+                : BitmapScalingMode.HighQuality);
+        BallEllipse.Fill = new ImageBrush
+        {
+            ImageSource = imageSource,
+            Stretch = Stretch.UniformToFill
+        };
+    }
+
+    private static TimeSpan GetGifFrameDelay(BitmapFrame frame)
+    {
+        try
+        {
+            if (frame.Metadata is BitmapMetadata metadata &&
+                metadata.GetQuery("/grctlext/Delay") is { } delayValue)
+            {
+                var delayHundredths = Convert.ToInt32(delayValue);
+                if (delayHundredths > 0)
+                    return TimeSpan.FromMilliseconds(delayHundredths * 10);
+            }
+        }
+        catch
+        {
+            // Use a short default delay for GIFs without frame timing metadata.
+        }
+
+        return TimeSpan.FromMilliseconds(100);
+    }
+
+    private void BallGifTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_ballGifFrames is not { Count: > 1 } frames || BallEllipse.Fill is not ImageBrush brush) return;
+        _ballGifFrameIndex = (_ballGifFrameIndex + 1) % frames.Count;
+        brush.ImageSource = frames[_ballGifFrameIndex];
+        if (_ballGifFrameDelays is { } delays)
+            _ballGifTimer!.Interval = delays[_ballGifFrameIndex];
+    }
+
     private void Window_SourceInitialized(object sender, EventArgs e)
     {
         var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        var style = GetWindowLong(hwnd, GWL_STYLE);
+        SetWindowLong(hwnd, GWL_STYLE, style | WS_THICKFRAME);
         var ex = GetWindowLong(hwnd, GWL_EXSTYLE);
         SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
+        System.Windows.Interop.HwndSource.FromHwnd(hwnd)?.AddHook(MainWindowHook);
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
 
         _topmostTimer = new DispatcherTimer(DispatcherPriority.Background)
@@ -193,6 +332,49 @@ public partial class MainWindow : Window
         PositionToRightEdge();
         StartModules();
         ApplySettings();
+    }
+
+    private IntPtr MainWindowHook(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (message != WM_NCHITTEST || !_isExpanded || _bouncyActive || !GetWindowRect(hwnd, out var rect))
+            return IntPtr.Zero;
+
+        var x = unchecked((short)((long)lParam & 0xFFFF));
+        var y = unchecked((short)(((long)lParam >> 16) & 0xFFFF));
+        var onLeft = _isRightSide && x >= rect.Left && x < rect.Left + ResizeBorder;
+        var onRight = !_isRightSide && x <= rect.Right && x > rect.Right - ResizeBorder;
+        var onTop = _isBottomSide && y >= rect.Top && y < rect.Top + ResizeBorder;
+        var onBottom = !_isBottomSide && y <= rect.Bottom && y > rect.Bottom - ResizeBorder;
+
+        int? hit = (onLeft, onRight, onTop, onBottom) switch
+        {
+            (true, _, true, _) => HTTOPLEFT,
+            (_, true, true, _) => HTTOPRIGHT,
+            (true, _, _, true) => HTBOTTOMLEFT,
+            (_, true, _, true) => HTBOTTOMRIGHT,
+            (true, _, _, _) => HTLEFT,
+            (_, true, _, _) => HTRIGHT,
+            (_, _, true, _) => HTTOP,
+            (_, _, _, true) => HTBOTTOM,
+            _ => null
+        };
+        if (hit is null) return IntPtr.Zero;
+        handled = true;
+        return new IntPtr(hit.Value);
+    }
+
+    private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!_isExpanded || PanelBorder.Visibility != Visibility.Visible) return;
+        PanelBorder.Width = Math.Max(200, ActualWidth - BallSlot - PanelMargin);
+        PanelBorder.Height = Math.Max(140, ActualHeight - PanelMargin * 2);
+        Canvas.SetLeft(BallEllipse, _isRightSide
+            ? Math.Max(BallMargin, ActualWidth - BallSlot)
+            : BallMargin);
+        Canvas.SetTop(BallEllipse, _isBottomSide
+            ? Math.Max(BallMargin, ActualHeight - BallSlot + BallMargin)
+            : BallMargin);
+        SyncBallGlow();
     }
 
     private void PositionToRightEdge()
@@ -257,7 +439,10 @@ public partial class MainWindow : Window
 
         Width = targetWidth;
         Height = targetHeight;
+        MinWidth = BallSlot + PanelMargin + 200;
+        MinHeight = 180;
 
+        PanelBorder.Width = PanelWidth;
         PanelBorder.Height = targetHeight - PanelMargin * 2;
         PanelBorder.Visibility = Visibility.Visible;
 
@@ -311,6 +496,8 @@ public partial class MainWindow : Window
 
         Width = BallSlot;
         Height = BallSlot;
+        MinWidth = 0;
+        MinHeight = 0;
         Canvas.SetLeft(BallEllipse, BallMargin);
         Canvas.SetTop(BallEllipse, BallMargin);
         SyncBallGlow();

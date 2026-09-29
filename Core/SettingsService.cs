@@ -11,6 +11,8 @@ public sealed class AppSettings
     public bool ShowTrayIcon { get; set; } = true;
     public bool SnapToEdge { get; set; } = false;
     public bool BouncyBall { get; set; } = false;
+    public string FloatingBallStyle { get; set; } = FloatingBallStyles.DefaultId;
+    public string? CustomBallImagePath { get; set; }
     public int FloatingBallSize { get; set; } = 56;
     public FrameMonitoringMode FrameMonitoringMode { get; set; } = FrameMonitoringMode.DesktopOutput;
     public Dictionary<string, bool> ModuleEnabled { get; set; } = new();

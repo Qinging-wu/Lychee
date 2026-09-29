@@ -6,8 +6,9 @@
         WindowStartupLocation="CenterOwner"
         Background="#FF1E1E2E"
         ResizeMode="NoResize">
-    <Grid Margin="16">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -21,9 +22,9 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Lychee Settings" Foreground="#FFB5DE56"
-                   FontSize="18" FontWeight="Bold" Margin="0,0,0,16"/>
+                   FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
 
-        <Border Grid.Row="1" Background="#22FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+        <Border Grid.Row="1" Background="#22FFFFFF" CornerRadius="8" Padding="8,6" Margin="0,0,0,4">
             <DockPanel>
                 <TextBlock Text="Always show panel" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
                 <CheckBox x:Name="AlwaysShowCheckBox" DockPanel.Dock="Right"
@@ -32,7 +33,7 @@
             </DockPanel>
         </Border>
 
-        <Border Grid.Row="2" Background="#22FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+        <Border Grid.Row="2" Background="#22FFFFFF" CornerRadius="8" Padding="8,6" Margin="0,0,0,4">
             <DockPanel>
                 <TextBlock Text="Alert on IP change" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
                 <CheckBox x:Name="AlertIpCheckBox" DockPanel.Dock="Right"
@@ -41,7 +42,7 @@
             </DockPanel>
         </Border>
 
-        <Border Grid.Row="3" Background="#22FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+        <Border Grid.Row="3" Background="#22FFFFFF" CornerRadius="8" Padding="8,6" Margin="0,0,0,4">
             <DockPanel>
                 <TextBlock Text="Alert on IP query failure" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
                 <CheckBox x:Name="AlertQueryFailCheckBox" DockPanel.Dock="Right"
@@ -50,7 +51,7 @@
             </DockPanel>
         </Border>
 
-        <Border Grid.Row="4" Background="#22FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+        <Border Grid.Row="4" Background="#22FFFFFF" CornerRadius="8" Padding="8,6" Margin="0,0,0,4">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -59,7 +60,7 @@
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="Frame monitoring" Foreground="White" FontSize="13"/>
                     <TextBlock Text="PresentMon runs only in application mode"
-                               Foreground="#FF888898" FontSize="10" Margin="0,2,8,0"
+                               Foreground="#FF888898" FontSize="10" Margin="0,1,8,0"
                                TextWrapping="Wrap"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Width="142">
@@ -68,14 +69,14 @@
                         <ComboBoxItem Content="Desktop output" Tag="DesktopOutput"/>
                         <ComboBoxItem Content="Foreground app" Tag="ForegroundApplication"/>
                     </ComboBox>
-                    <Button x:Name="RestartElevatedButton" Content="Restart as administrator"
-                            Click="RestartElevated_Click" Height="25" Margin="0,5,0,0"
+                            <Button x:Name="RestartElevatedButton" Content="Restart as administrator"
+                            Click="RestartElevated_Click" Height="25" Margin="0,3,0,0"
                             FontSize="10" Cursor="Hand"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Border Grid.Row="5" Background="#22FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+        <Border Grid.Row="5" Background="#22FFFFFF" CornerRadius="8" Padding="8,6" Margin="0,0,0,4">
             <DockPanel>
                 <TextBlock Text="Snap to edge" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
                 <CheckBox x:Name="SnapCheckBox" DockPanel.Dock="Right"
@@ -84,7 +85,7 @@
             </DockPanel>
         </Border>
 
-        <Border Grid.Row="6" Background="#22FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+        <Border Grid.Row="6" Background="#22FFFFFF" CornerRadius="8" Padding="8,6" Margin="0,0,0,4">
             <DockPanel>
                 <TextBlock Text="Do NOT click this" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
                 <CheckBox x:Name="BouncyBallCheckBox" DockPanel.Dock="Right"
@@ -93,14 +94,29 @@
             </DockPanel>
         </Border>
 
-        <TextBlock Grid.Row="7" Text="Info Modules" Foreground="#FFCCCCCC" FontSize="12" Margin="0,8,0,6"/>
+        <Border Grid.Row="7" Background="#22FFFFFF" CornerRadius="8" Padding="8,6" Margin="0,0,0,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="142"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Style" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
+                <ComboBox x:Name="BallStyleComboBox" Grid.Column="1" Height="28"
+                          DisplayMemberPath="DisplayName" SelectedValuePath="Id"
+                          SelectionChanged="BallStyle_Changed"/>
+                <Button Grid.Column="1" Content="Import image..." Height="25" Margin="0,34,0,0"
+                        Click="ImportBallImage_Click" Cursor="Hand"/>
+            </Grid>
+        </Border>
 
-        <Border Grid.Row="8" Background="#22FFFFFF" CornerRadius="8" Padding="6">
+        <TextBlock Grid.Row="8" Text="Info Modules" Foreground="#FFCCCCCC" FontSize="12" Margin="0,4,0,3"/>
+
+        <Border Grid.Row="9" Background="#22FFFFFF" CornerRadius="8" Padding="6">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="ModuleToggleList">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="#33FFFFFF" CornerRadius="6" Padding="10,10" Margin="2">
+                            <Border Background="#33FFFFFF" CornerRadius="6" Padding="8,5" Margin="2,1">
                                 <DockPanel>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Icon}" FontFamily="Segoe MDL2 Assets" FontSize="16"
@@ -122,7 +138,7 @@
             </ScrollViewer>
         </Border>
 
-        <TextBlock Grid.Row="9" Text="Lychee - Config: %AppData%\Lychee\settings.json"
+        <TextBlock Grid.Row="10" Text="Lychee - Config: %AppData%\Lychee\settings.json"
                    Foreground="#888888" FontSize="10" Margin="0,12,0,0"/>
     </Grid>
 </Window>

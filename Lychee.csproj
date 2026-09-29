@@ -15,6 +15,10 @@
 
   <ItemGroup>
     <Resource Include="Assets\icon.png" />
+    <Resource Include="Assets\basketball.png" />
+    <Resource Include="Assets\planet.png" />
+    <Resource Include="Assets\moon.png" />
+    <Resource Include="Assets\pixel-lychee.gif" />
     <EmbeddedResource Include="Assets\icon.ico" />
     <Content Include="Tools\PresentMon-2.5.1-x64.exe">
       <Link>PresentMon_x64.exe</Link>

@@ -4,6 +4,7 @@ using System.IO;
 using System.Security.Principal;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Win32OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using Lychee.Core;
 
@@ -27,6 +28,9 @@ public partial class SettingsWindow : Window
         SnapCheckBox.IsChecked = _settings.Current.SnapToEdge;
         BouncyBallCheckBox.IsChecked = _settings.Current.BouncyBall;
         RefreshBallStyles();
+        PanelFontComboBox.ItemsSource = Fonts.SystemFontFamilies.OrderBy(family => family.Source).ToList();
+        PanelFontComboBox.SelectedValue = _settings.Current.PanelFontFamily;
+        LoadAppearanceControls(_settings.Current);
         FrameModeComboBox.SelectedIndex = _settings.Current.FrameMonitoringMode == FrameMonitoringMode.ForegroundApplication
             ? 1
             : 0;
@@ -66,6 +70,128 @@ public partial class SettingsWindow : Window
     {
         if (!_isInitialized || BallStyleComboBox.SelectedValue is not string styleId) return;
         _settings.Update(settings => settings.FloatingBallStyle = styleId);
+    }
+
+    private void LoadAppearanceControls(AppSettings settings)
+    {
+        UseCustomAppearanceCheckBox.IsChecked = settings.UseCustomPanelAppearance;
+        BackgroundRedTextBox.Text = settings.PanelBackgroundRed.ToString();
+        BackgroundGreenTextBox.Text = settings.PanelBackgroundGreen.ToString();
+        BackgroundBlueTextBox.Text = settings.PanelBackgroundBlue.ToString();
+        TextRedTextBox.Text = settings.PanelTextRed.ToString();
+        TextGreenTextBox.Text = settings.PanelTextGreen.ToString();
+        TextBlueTextBox.Text = settings.PanelTextBlue.ToString();
+        BackgroundOpacitySlider.Value = Math.Clamp(settings.PanelBackgroundOpacity, 0, 100);
+        OpacityValueText.Text = $"{(int)BackgroundOpacitySlider.Value}%";
+        RefreshAppearancePreview();
+    }
+
+    private void UseCustomAppearance_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_isInitialized) return;
+        _settings.Update(settings => settings.UseCustomPanelAppearance = UseCustomAppearanceCheckBox.IsChecked == true);
+        RefreshAppearancePreview();
+    }
+
+    private void AppearanceColor_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (!_isInitialized ||
+            !TryReadRgb(BackgroundRedTextBox, BackgroundGreenTextBox, BackgroundBlueTextBox, out var background) ||
+            !TryReadRgb(TextRedTextBox, TextGreenTextBox, TextBlueTextBox, out var text)) return;
+
+        EnableCustomAppearance();
+        _settings.Update(settings =>
+        {
+            settings.PanelBackgroundRed = background.R;
+            settings.PanelBackgroundGreen = background.G;
+            settings.PanelBackgroundBlue = background.B;
+            settings.PanelTextRed = text.R;
+            settings.PanelTextGreen = text.G;
+            settings.PanelTextBlue = text.B;
+        });
+        RefreshAppearancePreview();
+    }
+
+    private static bool TryReadRgb(
+        System.Windows.Controls.TextBox redBox,
+        System.Windows.Controls.TextBox greenBox,
+        System.Windows.Controls.TextBox blueBox,
+        out (int R, int G, int B) rgb)
+    {
+        rgb = default;
+        if (!int.TryParse(redBox.Text, out var red) || red is < 0 or > 255 ||
+            !int.TryParse(greenBox.Text, out var green) || green is < 0 or > 255 ||
+            !int.TryParse(blueBox.Text, out var blue) || blue is < 0 or > 255)
+            return false;
+
+        rgb = (red, green, blue);
+        return true;
+    }
+
+    private void BackgroundOpacity_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_isInitialized) return;
+        EnableCustomAppearance();
+        var opacity = (int)Math.Round(BackgroundOpacitySlider.Value);
+        OpacityValueText.Text = $"{opacity}%";
+        _settings.Update(settings => settings.PanelBackgroundOpacity = opacity);
+        RefreshAppearancePreview();
+    }
+
+    private void PanelFont_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_isInitialized || PanelFontComboBox.SelectedValue is not string fontFamily) return;
+        EnableCustomAppearance();
+        _settings.Update(settings => settings.PanelFontFamily = fontFamily);
+        RefreshAppearancePreview();
+    }
+
+    private void EnableCustomAppearance()
+    {
+        if (UseCustomAppearanceCheckBox.IsChecked != true)
+            UseCustomAppearanceCheckBox.IsChecked = true;
+    }
+
+    private void RefreshAppearancePreview()
+    {
+        if (!TryReadRgb(BackgroundRedTextBox, BackgroundGreenTextBox, BackgroundBlueTextBox, out var background) ||
+            !TryReadRgb(TextRedTextBox, TextGreenTextBox, TextBlueTextBox, out var text)) return;
+
+        var alpha = (byte)Math.Round(Math.Clamp(BackgroundOpacitySlider.Value, 0, 100) * 2.55);
+        AppearancePreviewBorder.Background = new SolidColorBrush(Color.FromArgb(
+            alpha, (byte)background.R, (byte)background.G, (byte)background.B));
+        AppearancePreviewText.Foreground = new SolidColorBrush(Color.FromRgb(
+            (byte)text.R, (byte)text.G, (byte)text.B));
+        try
+        {
+            var family = PanelFontComboBox.SelectedValue as string ?? PanelFontComboBox.Text;
+            AppearancePreviewText.FontFamily = new System.Windows.Media.FontFamily(
+                string.IsNullOrWhiteSpace(family) ? "Segoe UI" : family);
+        }
+        catch (ArgumentException)
+        {
+            AppearancePreviewText.FontFamily = System.Windows.SystemFonts.MessageFontFamily;
+        }
+    }
+
+    private void ResetAppearance_Click(object sender, RoutedEventArgs e)
+    {
+        _isInitialized = false;
+        _settings.Update(settings =>
+        {
+            settings.UseCustomPanelAppearance = false;
+            settings.PanelBackgroundRed = 30;
+            settings.PanelBackgroundGreen = 30;
+            settings.PanelBackgroundBlue = 46;
+            settings.PanelBackgroundOpacity = 90;
+            settings.PanelTextRed = 255;
+            settings.PanelTextGreen = 255;
+            settings.PanelTextBlue = 255;
+            settings.PanelFontFamily = "Segoe UI";
+        });
+        PanelFontComboBox.SelectedValue = "Segoe UI";
+        LoadAppearanceControls(_settings.Current);
+        _isInitialized = true;
     }
 
     private void ImportBallImage_Click(object sender, RoutedEventArgs e)

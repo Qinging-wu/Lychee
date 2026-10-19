@@ -1,17 +1,30 @@
-using System.Runtime.InteropServices;
+using System.Windows.Threading;
 using Lychee.Core;
+using NAudio.CoreAudioApi;
 
 namespace Lychee.Modules;
 
-public sealed class AudioMeterModule : InfoModuleBase
+public sealed class AudioMeterModule : InfoModuleBase, IAudioSpectrumProvider
 {
+    private const float FloorThreshold = 0.001f;
+    private readonly Dispatcher _dispatcher = Application.Current.Dispatcher;
+    private DispatcherTimer? _timer;
+    private WasapiAudioCaptureSource? _captureSource;
+    private MMDeviceEnumerator? _meterEnumerator;
+    private MMDevice? _meterEndpoint;
+    private Task _pendingSourceStop = Task.CompletedTask;
+    private DateTimeOffset _nextMeterRetryAt;
+    private int _meterRetryCount;
+    private bool _spectrumActive;
+    private string _spectrumStatus = "Spectrum inactive";
+
     public override string Id => "audio-meter";
     public override string DisplayName => "Audio Meter";
     public override string Icon => "\uE767";
 
-    private System.Windows.Threading.DispatcherTimer? _timer;
-    private IAudioMeterInformation? _meter;
-    private bool _initFailed;
+    /// <summary>The latest immutable FFT result. The view polls this at its own render cadence.</summary>
+    public SpectrumFrame? LatestSpectrum => _captureSource?.LatestFrame;
+    public string SpectrumStatus => _spectrumStatus;
 
     public AudioMeterModule()
     {
@@ -21,63 +34,109 @@ public sealed class AudioMeterModule : InfoModuleBase
 
     public override void Start()
     {
-        if (_timer != null) return;
+        if (_timer is not null) return;
 
-        TryInitialize();
-
-        _timer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background)
+        _timer = new DispatcherTimer(DispatcherPriority.Background)
         {
-            Interval = TimeSpan.FromMilliseconds(33)
+            Interval = AudioMeterPollingPolicy.GetInterval(_spectrumActive)
         };
         _timer.Tick += OnTick;
         _timer.Start();
+
+        if (_pendingSourceStop.IsCompleted)
+            InitializeCaptureSource();
+        else
+            _ = InitializeCaptureSourceAfterStopAsync(_pendingSourceStop);
     }
 
-    private void TryInitialize()
+    /// <summary>Enables expensive spectrum capture only while the info panel is actually visible.</summary>
+    public void SetSpectrumActive(bool active)
     {
-        IMMDeviceEnumerator? enumerator = null;
-        IMMDevice? device = null;
+        _spectrumActive = active;
+        if (_timer is not null)
+            _timer.Interval = AudioMeterPollingPolicy.GetInterval(active);
+        _captureSource?.SetActive(active);
+        if (!active)
+            _spectrumStatus = "Spectrum paused";
+        else if (_captureSource is null)
+            _spectrumStatus = "Waiting for audio...";
+    }
 
+    private async Task InitializeCaptureSourceAfterStopAsync(Task previousStop)
+    {
+        try { await previousStop.ConfigureAwait(true); }
+        catch (Exception ex) { AppLog.Warn(nameof(AudioMeterModule), $"Previous capture session did not stop cleanly: {ex}"); }
+        if (_timer is not null)
+            InitializeCaptureSource();
+    }
+
+    private void InitializeCaptureSource()
+    {
         try
         {
-            enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
-
-            var hr = enumerator.GetDefaultAudioEndpoint(EDataFlow.Render, ERole.Console, out device);
-            if (hr != 0)
-            {
-                SetInitializationFailure($"GetDefaultAudioEndpoint failed: 0x{hr:X8}");
-                return;
-            }
-
-            var iidMeter = typeof(IAudioMeterInformation).GUID;
-            hr = device.Activate(ref iidMeter, ClsCtxInprocServer, IntPtr.Zero, out var meter);
-            if (hr != 0)
-            {
-                SetInitializationFailure($"Activate(IAudioMeterInformation) failed: 0x{hr:X8}");
-                return;
-            }
-
-            ReleaseMeter();
-            _meter = meter;
-            _initFailed = false;
+            var source = new WasapiAudioCaptureSource();
+            source.StatusChanged += OnSpectrumStatusChanged;
+            source.DefaultDeviceChanged += OnDefaultDeviceChanged;
+            _captureSource = source;
+            _spectrumStatus = _spectrumActive ? "Waiting for audio..." : "Spectrum paused";
+            RefreshMeterEndpoint();
+            source.SetActive(_spectrumActive);
         }
-        catch (COMException ex)
+        catch (Exception ex)
         {
-            SetInitializationFailure($"Audio endpoint initialization failed: 0x{ex.HResult:X8}");
+            AppLog.Warn(nameof(AudioMeterModule), $"Unable to initialize audio spectrum: {ex}");
+            _spectrumStatus = "Spectrum unavailable";
+            Detail = "Audio endpoint unavailable";
+            ScheduleMeterRetry();
         }
-        finally
+    }
+
+    private void OnSpectrumStatusChanged(string status)
+    {
+        if (_dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished) return;
+        if (_dispatcher.CheckAccess())
         {
-            ReleaseComObject(device);
-            ReleaseComObject(enumerator);
+            _spectrumStatus = status;
+            return;
+        }
+
+        try { _dispatcher.BeginInvoke(() => _spectrumStatus = status, DispatcherPriority.Background); }
+        catch (InvalidOperationException) { }
+    }
+
+    private void OnDefaultDeviceChanged()
+    {
+        if (_dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished) return;
+        try { _dispatcher.BeginInvoke(RefreshMeterEndpoint, DispatcherPriority.Background); }
+        catch (InvalidOperationException) { }
+    }
+
+    private void RefreshMeterEndpoint()
+    {
+        DisposeMeterEndpoint();
+        try
+        {
+            _meterEnumerator ??= new MMDeviceEnumerator();
+            _meterEndpoint = _meterEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
+            _meterRetryCount = 0;
+            _nextMeterRetryAt = DateTimeOffset.MinValue;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn(nameof(AudioMeterModule), $"Unable to open default audio endpoint meter: {ex.Message}");
+            CurrentValue = "Level  --%";
+            Detail = "Audio endpoint unavailable";
+            ScheduleMeterRetry();
         }
     }
 
     private void OnTick(object? sender, EventArgs e)
     {
-        if (_meter == null)
+        if (_meterEndpoint is null)
         {
-            if (!_initFailed) TryInitialize();
-            if (_meter == null)
+            if (DateTimeOffset.UtcNow >= _nextMeterRetryAt)
+                RefreshMeterEndpoint();
+            if (_meterEndpoint is null)
             {
                 CurrentValue = "Level  --%";
                 Progress = null;
@@ -87,124 +146,64 @@ public sealed class AudioMeterModule : InfoModuleBase
 
         try
         {
-            var hr = _meter.GetPeakValue(out var peak);
-            if (hr != 0)
-            {
-                ReleaseMeter();
-                _initFailed = false;
-                CurrentValue = "Level  --%";
-                Progress = null;
-                Detail = $"GetPeakValue failed: 0x{hr:X8}";
-                return;
-            }
-
-            peak = Math.Clamp(peak, 0f, 1f);
-
+            var peak = Math.Clamp(_meterEndpoint.AudioMeterInformation.MasterPeakValue, 0f, 1f);
             var decibels = 20 * Math.Log10(Math.Max(peak, FloorThreshold));
-            var logLevel = Math.Clamp((decibels - DbFloor) / -DbFloor, 0.0, 1.0);
-            var meterLevel = Math.Pow(logLevel, ProgressExponent);
             var percent = (int)Math.Round(peak * 100);
             CurrentValue = $"Level  {percent}%";
-            Progress = meterLevel;
-            Detail = peak > FloorThreshold
-                ? $"{decibels:0} dBFS | Active"
-                : "Silent";
+            Detail = peak > FloorThreshold ? $"{decibels:0} dBFS | Active" : "Silent";
         }
-        catch (COMException ex)
+        catch (Exception ex)
         {
-            ReleaseMeter();
-            _initFailed = false;
+            AppLog.Warn(nameof(AudioMeterModule), $"Audio peak meter read failed: {ex.Message}");
+            DisposeMeterEndpoint();
             CurrentValue = "Level  --%";
-            Progress = null;
-            Detail = $"GetPeakValue failed: 0x{ex.HResult:X8}";
+            Detail = "Audio endpoint unavailable";
+            ScheduleMeterRetry();
         }
+    }
+
+    private void ScheduleMeterRetry()
+    {
+        var delays = new[] { 1, 2, 5 };
+        var seconds = delays[Math.Min(_meterRetryCount, delays.Length - 1)];
+        _meterRetryCount++;
+        _nextMeterRetryAt = DateTimeOffset.UtcNow.AddSeconds(seconds);
+    }
+
+    private void DisposeMeterEndpoint()
+    {
+        var endpoint = _meterEndpoint;
+        _meterEndpoint = null;
+        endpoint?.Dispose();
     }
 
     public override void Stop()
     {
-        if (_timer != null)
-        {
-            _timer.Stop();
+        _timer?.Stop();
+        if (_timer is not null)
             _timer.Tick -= OnTick;
-            _timer = null;
-        }
+        _timer = null;
 
-        ReleaseMeter();
-        Progress = null;
-    }
+        DisposeMeterEndpoint();
+        _meterEnumerator?.Dispose();
+        _meterEnumerator = null;
 
-    private void SetInitializationFailure(string detail)
-    {
-        ReleaseMeter();
-        _initFailed = true;
-        CurrentValue = "Level  --%";
-        Detail = detail;
-        Progress = null;
-    }
-
-    private void ReleaseMeter()
-    {
-        var meter = _meter;
-        _meter = null;
-        ReleaseComObject(meter);
-    }
-
-    private static void ReleaseComObject(object? value)
-    {
-        if (value != null && Marshal.IsComObject(value))
+        var source = _captureSource;
+        _captureSource = null;
+        if (source is not null)
         {
-            Marshal.ReleaseComObject(value);
+            source.StatusChanged -= OnSpectrumStatusChanged;
+            source.DefaultDeviceChanged -= OnDefaultDeviceChanged;
+            _pendingSourceStop = source.DisposeAsync().AsTask();
         }
+
+        _spectrumStatus = "Spectrum inactive";
+        Progress = null;
     }
 
-    private const uint ClsCtxInprocServer = 0x1;
-    private const float FloorThreshold = 0.001f;
-    private const double DbFloor = -40.0;
-    private const double ProgressExponent = 2.5;
-
-    private enum EDataFlow
+    public override async Task StopAsync()
     {
-        Render = 0
-    }
-
-    private enum ERole
-    {
-        Console = 0
-    }
-
-    [ComImport]
-    [Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
-    private class MMDeviceEnumeratorComObject
-    {
-    }
-
-    [ComImport]
-    [Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IMMDeviceEnumerator
-    {
-        [PreserveSig]
-        int EnumAudioEndpoints(EDataFlow dataFlow, uint stateMask, out IntPtr devices);
-
-        [PreserveSig]
-        int GetDefaultAudioEndpoint(EDataFlow dataFlow, ERole role, out IMMDevice endpoint);
-    }
-
-    [ComImport]
-    [Guid("D666063F-1587-4E43-81F1-B948E807363F")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IMMDevice
-    {
-        [PreserveSig]
-        int Activate(ref Guid iid, uint clsCtx, IntPtr activationParams, out IAudioMeterInformation endpoint);
-    }
-
-    [ComImport]
-    [Guid("C02216F6-8C67-4B5B-9D00-D008E73E0064")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IAudioMeterInformation
-    {
-        [PreserveSig]
-        int GetPeakValue(out float peak);
+        Stop();
+        await _pendingSourceStop.ConfigureAwait(true);
     }
 }

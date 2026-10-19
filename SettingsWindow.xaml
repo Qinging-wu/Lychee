@@ -17,6 +17,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -109,9 +110,84 @@
             </Grid>
         </Border>
 
-        <TextBlock Grid.Row="8" Text="Info Modules" Foreground="#FFCCCCCC" FontSize="12" Margin="0,4,0,3"/>
+        <Expander x:Name="AppearanceExpander" Grid.Row="8" Header="Custom panel appearance"
+                  Foreground="#FFCCCCCC" Margin="0,2,0,4">
+            <Border Background="#22FFFFFF" CornerRadius="8" Padding="8" Margin="0,4,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="108"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-        <Border Grid.Row="9" Background="#22FFFFFF" CornerRadius="8" Padding="6">
+                    <CheckBox x:Name="UseCustomAppearanceCheckBox" Grid.Row="0" Grid.ColumnSpan="2"
+                              Content="Enable custom appearance"
+                              Foreground="White" FontSize="12"
+                              Checked="UseCustomAppearance_Changed" Unchecked="UseCustomAppearance_Changed"
+                              Margin="0,0,0,4"/>
+
+                    <TextBlock Grid.Row="1" Text="Background RGB" Foreground="#FFCCCCCC"
+                               VerticalAlignment="Center" FontSize="11"/>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="2">
+                        <TextBlock Text="R" Foreground="#FFAAAAAA" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                        <TextBox x:Name="BackgroundRedTextBox" Width="38" MaxLength="3" TextChanged="AppearanceColor_Changed"/>
+                        <TextBlock Text="G" Foreground="#FFAAAAAA" VerticalAlignment="Center" Margin="5,0,2,0"/>
+                        <TextBox x:Name="BackgroundGreenTextBox" Width="38" MaxLength="3" TextChanged="AppearanceColor_Changed"/>
+                        <TextBlock Text="B" Foreground="#FFAAAAAA" VerticalAlignment="Center" Margin="5,0,2,0"/>
+                        <TextBox x:Name="BackgroundBlueTextBox" Width="38" MaxLength="3" TextChanged="AppearanceColor_Changed"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="2" Text="Text RGB" Foreground="#FFCCCCCC"
+                               VerticalAlignment="Center" FontSize="11"/>
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="2">
+                        <TextBlock Text="R" Foreground="#FFAAAAAA" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                        <TextBox x:Name="TextRedTextBox" Width="38" MaxLength="3" TextChanged="AppearanceColor_Changed"/>
+                        <TextBlock Text="G" Foreground="#FFAAAAAA" VerticalAlignment="Center" Margin="5,0,2,0"/>
+                        <TextBox x:Name="TextGreenTextBox" Width="38" MaxLength="3" TextChanged="AppearanceColor_Changed"/>
+                        <TextBlock Text="B" Foreground="#FFAAAAAA" VerticalAlignment="Center" Margin="5,0,2,0"/>
+                        <TextBox x:Name="TextBlueTextBox" Width="38" MaxLength="3" TextChanged="AppearanceColor_Changed"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="3" Text="Background opacity" Foreground="#FFCCCCCC"
+                               VerticalAlignment="Center" FontSize="11"/>
+                    <DockPanel Grid.Row="3" Grid.Column="1" Margin="2">
+                        <TextBlock x:Name="OpacityValueText" DockPanel.Dock="Right" Width="34"
+                                   TextAlignment="Right" Foreground="White" VerticalAlignment="Center"/>
+                        <Slider x:Name="BackgroundOpacitySlider" Minimum="0" Maximum="100" TickFrequency="5"
+                                IsSnapToTickEnabled="False" ValueChanged="BackgroundOpacity_Changed"/>
+                    </DockPanel>
+
+                    <TextBlock Grid.Row="4" Text="Font" Foreground="#FFCCCCCC"
+                               VerticalAlignment="Center" FontSize="11"/>
+                    <DockPanel Grid.Row="4" Grid.Column="1" Margin="2">
+                        <Button Content="Reset default" DockPanel.Dock="Right" Height="25" Margin="6,0,0,0"
+                                Click="ResetAppearance_Click" Cursor="Hand"/>
+                        <ComboBox x:Name="PanelFontComboBox" Height="25" IsEditable="True"
+                                  IsTextSearchEnabled="True" DisplayMemberPath="Source" SelectedValuePath="Source"
+                                  SelectionChanged="PanelFont_Changed"/>
+                    </DockPanel>
+
+                    <TextBlock Grid.Row="5" Text="Preview" Foreground="#FFCCCCCC"
+                               VerticalAlignment="Center" FontSize="11"/>
+                    <Border x:Name="AppearancePreviewBorder" Grid.Row="5" Grid.Column="1"
+                            CornerRadius="5" Padding="7,5" Margin="2" BorderBrush="#44808080" BorderThickness="1">
+                        <TextBlock x:Name="AppearancePreviewText" Text="Lychee  ·  Sample text 123"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                </Grid>
+            </Border>
+        </Expander>
+
+        <TextBlock Grid.Row="9" Text="Info Modules" Foreground="#FFCCCCCC" FontSize="12" Margin="0,4,0,3"/>
+
+        <Border Grid.Row="10" Background="#22FFFFFF" CornerRadius="8" Padding="6">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="ModuleToggleList">
                     <ItemsControl.ItemTemplate>
@@ -138,7 +214,7 @@
             </ScrollViewer>
         </Border>
 
-        <TextBlock Grid.Row="10" Text="Lychee - Config: %AppData%\Lychee\settings.json"
+        <TextBlock Grid.Row="11" Text="Lychee - Config: %AppData%\Lychee\settings.json"
                    Foreground="#888888" FontSize="10" Margin="0,12,0,0"/>
     </Grid>
 </Window>

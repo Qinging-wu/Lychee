@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <Compile Include="..\..\Core\SpectrumAnalyzer.cs" Link="SpectrumAnalyzer.cs" />
+    <Compile Include="..\..\Core\SpectrumFrame.cs" Link="SpectrumFrame.cs" />
+    <Compile Include="..\..\Core\WasapiAudioCaptureSource.cs" Link="WasapiAudioCaptureSource.cs" />
+  </ItemGroup>
+</Project>

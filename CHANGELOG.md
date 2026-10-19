@@ -1,12 +1,14 @@
 # Changelog
 
-## v2.0.0-beta.2
+## v2.0.0-beta.3
 
 | Change | Detail |
 |---|---|
 | 🔊 Audio meter | Live output level from the default audio device, shown as a percentage, dBFS value, and meter bar |
+| 🎶 16-band spectrum | Added real-time WASAPI loopback spectrum, peak holds, and particles; capture and rendering pause while the panel is hidden |
 | 🎨 Floating ball styles | Choose built-in styles or import a custom PNG, JPEG, BMP, or animated GIF image |
 | ↔️ Resizable panel | Resize the expanded panel by dragging its outer edges or corners; the floating ball and glow stay aligned |
+| 🖌️ Custom panel appearance | Adjust panel background opacity, RGB background and text colors, and font from Settings, with a live preview and reset button |
 
 ## v2.0.0-beta.1
 

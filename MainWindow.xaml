@@ -1,6 +1,7 @@
 <Window x:Class="Lychee.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:Lychee.Controls"
         Title="Lychee"
         Height="440" Width="300"
         WindowStyle="None"
@@ -16,6 +17,10 @@
         Deactivated="Window_Deactivated">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <SolidColorBrush x:Key="ModuleNameBrush" Color="#FFCCCCCC"/>
+        <SolidColorBrush x:Key="ModuleValueBrush" Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="ModuleDetailBrush" Color="#FF8F8F9F"/>
+        <FontFamily x:Key="ModuleFontFamily">Segoe UI</FontFamily>
     </Window.Resources>
     <Canvas x:Name="RootCanvas" ClipToBounds="True">
         <!-- Info panel (position set from code) -->
@@ -54,14 +59,16 @@
                                             <DockPanel>
                                                 <TextBlock Text="{Binding Icon}" FontFamily="Segoe MDL2 Assets" FontSize="15"
                                                            Foreground="#FFF85556" DockPanel.Dock="Left" Margin="0,0,8,0"/>
-                                                <TextBlock Text="{Binding DisplayName}" Foreground="#FFCCCCCC" FontSize="11"/>
+                                                <TextBlock Text="{Binding DisplayName}" Foreground="{DynamicResource ModuleNameBrush}"
+                                                           FontFamily="{DynamicResource ModuleFontFamily}" FontSize="11"/>
                                             </DockPanel>
-                                            <TextBlock Text="{Binding CurrentValue}" Foreground="White" FontSize="13"
+                                            <TextBlock Text="{Binding CurrentValue}" Foreground="{DynamicResource ModuleValueBrush}"
+                                                       FontFamily="{DynamicResource ModuleFontFamily}" FontSize="13"
                                                        TextWrapping="Wrap" Margin="0,3,0,0"/>
-                                            <Border Height="12" Margin="0,8,0,1" CornerRadius="6" ClipToBounds="True"
-                                                    Background="#6610121D" ToolTip="{Binding Detail}">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
+                                            <controls:AudioSpectrumView Height="80" Margin="0,8,0,1"
+                                                                        AutomationProperties.Name="16-band audio spectrum">
+                                                <controls:AudioSpectrumView.Style>
+                                                    <Style TargetType="controls:AudioSpectrumView">
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding Id}" Value="audio-meter">
@@ -69,32 +76,10 @@
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </Border.Style>
-                                                <Grid>
-                                                    <Border CornerRadius="6" RenderTransformOrigin="0,0.5">
-                                                        <Border.RenderTransform>
-                                                            <ScaleTransform ScaleX="{Binding Progress, TargetNullValue=0, Mode=OneWay}"/>
-                                                        </Border.RenderTransform>
-                                                        <Border.Background>
-                                                            <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                                                <GradientStop Color="#FF57D38C" Offset="0"/>
-                                                                <GradientStop Color="#FFB5DE56" Offset="0.56"/>
-                                                                <GradientStop Color="#FFFFC857" Offset="0.76"/>
-                                                                <GradientStop Color="#FFF85556" Offset="1"/>
-                                                            </LinearGradientBrush>
-                                                        </Border.Background>
-                                                        <Border.OpacityMask>
-                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0.0833,0" SpreadMethod="Repeat">
-                                                                <GradientStop Color="White" Offset="0"/>
-                                                                <GradientStop Color="White" Offset="0.55"/>
-                                                                <GradientStop Color="Transparent" Offset="0.55"/>
-                                                                <GradientStop Color="Transparent" Offset="1"/>
-                                                            </LinearGradientBrush>
-                                                        </Border.OpacityMask>
-                                                    </Border>
-                                                </Grid>
-                                            </Border>
-                                            <TextBlock Text="{Binding Detail}" Foreground="#FF8F8F9F" FontSize="10"
+                                                </controls:AudioSpectrumView.Style>
+                                            </controls:AudioSpectrumView>
+                                            <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource ModuleDetailBrush}"
+                                                       FontFamily="{DynamicResource ModuleFontFamily}" FontSize="10"
                                                        TextWrapping="Wrap" Margin="0,4,0,0">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">

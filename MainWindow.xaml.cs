@@ -20,6 +20,8 @@ public partial class MainWindow : Window
     private const double BallSlot = 56;          // total window size occupied by the ball (incl. margins)
     private const double PanelWidth = 260;
     private const double PanelMargin = 4;
+    private const double BallHoverMargin = 8;    // proximity zone around the ball that counts as hover
+    private const double PanelHoverMargin = 4;   // tolerance around the panel that keeps it open
 
     private const int GWL_EXSTYLE = -20;
     private const int GWL_STYLE = -16;
@@ -32,6 +34,8 @@ public partial class MainWindow : Window
     private const int SWP_NOACTIVATE = 0x0010;
     private const int SWP_SHOWWINDOW = 0x0040;
     private const int WM_NCHITTEST = 0x0084;
+    private const int WM_ENTERSIZEMOVE = 0x0231;
+    private const int WM_EXITSIZEMOVE = 0x0232;
     private const int HTLEFT = 10, HTRIGHT = 11, HTTOP = 12, HTTOPLEFT = 13, HTTOPRIGHT = 14;
     private const int HTBOTTOM = 15, HTBOTTOMLEFT = 16, HTBOTTOMRIGHT = 17;
     private const int ResizeBorder = 8;
@@ -56,8 +60,11 @@ public partial class MainWindow : Window
     private readonly ModuleManager _moduleManager;
     private readonly TrayIconService _tray;
     private readonly DispatcherTimer _hoverTimer;
+    private readonly bool _audioSpectrumUiTest;
+    private readonly bool _audioSpectrumUiTestCollapsed;
     private DispatcherTimer? _topmostTimer;
     private bool _isExpanded = false;
+    private bool _panelCollapsing = false;
     private bool _isHoveringBall = false;
     private SettingsWindow? _settingsWindow;
     private Window? _alertToast;
@@ -67,11 +74,14 @@ public partial class MainWindow : Window
     private bool _isBottomSide = true;
     private bool _isDragging;
     private bool _isMouseDown;
+    private bool _isUserSizing;
+    private bool _isUserSizingHeight;
+    private bool _hasUserResizedHeight;
     private bool _dragStarted;
     private bool _restorePinnedAfterDrag;
     private Point _dragStartScreen;
-    private double _dragStartLeft;
-    private double _dragStartTop;
+    private double _dragStartBallScreenX;
+    private double _dragStartBallScreenY;
     private const double DragThreshold = 5;
 
     private bool _bouncyActive;
@@ -97,7 +107,17 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        var commandLineArgs = Environment.GetCommandLineArgs();
+        _audioSpectrumUiTestCollapsed = commandLineArgs.Any(
+            arg => string.Equals(arg, "--audio-spectrum-ui-test-collapsed", StringComparison.OrdinalIgnoreCase));
+        _audioSpectrumUiTest = _audioSpectrumUiTestCollapsed || commandLineArgs.Any(
+            arg => string.Equals(arg, "--audio-spectrum-ui-test", StringComparison.OrdinalIgnoreCase));
         InitializeComponent();
+        if (_audioSpectrumUiTest)
+        {
+            ShowInTaskbar = true;
+            ShowActivated = true;
+        }
 
         _settings = new SettingsService();
         _moduleManager = new ModuleManager(_settings);
@@ -109,6 +129,12 @@ public partial class MainWindow : Window
         _moduleManager.RegisterModule(new LatencyModule());
         _moduleManager.RegisterModule(new FpsModule(_settings, GetActiveDisplayDeviceName));
         _moduleManager.RegisterModule(new AudioMeterModule());
+        if (_audioSpectrumUiTest)
+        {
+            // Keep this view isolated without changing the user's saved module preferences.
+            foreach (var module in _moduleManager.Modules)
+                module.IsEnabled = module.Id == "audio-meter";
+        }
 
         if (_moduleManager.Get("public-ip") is PublicIpModule ipModule)
         {
@@ -141,8 +167,15 @@ public partial class MainWindow : Window
 
     public void StartModules() => _moduleManager.StartAll();
 
+    private void UpdateAudioSpectrumActivity()
+    {
+        if (_moduleManager.Get("audio-meter") is AudioMeterModule audioMeter)
+            audioMeter.SetSpectrumActive(Visibility == Visibility.Visible && PanelBorder.Visibility == Visibility.Visible);
+    }
+
     private void RefreshModuleList()
     {
+        UpdateAudioSpectrumActivity();
         var visibleModules = _moduleManager.Modules.Where(m => m.IsEnabled).ToList();
         var current = ModuleList.ItemsSource as List<IInfoModule>;
         if (current != null &&
@@ -152,6 +185,8 @@ public partial class MainWindow : Window
             return;
         }
         ModuleList.ItemsSource = visibleModules;
+        if (_isExpanded)
+            ResizeExpandedPanelToCurrentModules();
     }
 
     private double CalcExpandedHeight(int moduleCount)
@@ -159,7 +194,8 @@ public partial class MainWindow : Window
         var approxItemHeight = 70;
         var headerHeight = 50;
         var padding = 16;
-        var target = headerHeight + padding + moduleCount * approxItemHeight;
+        var spectrumHeight = _moduleManager.Get("audio-meter") is { IsEnabled: true } ? 80 : 0;
+        var target = headerHeight + padding + moduleCount * approxItemHeight + spectrumHeight;
         if (target > 540) target = 540;
         return target;
     }
@@ -168,6 +204,7 @@ public partial class MainWindow : Window
     {
         var s = _settings.Current;
         ApplyBallStyle();
+        ApplyPanelAppearance(s);
 
         if (s.BouncyBall)
         {
@@ -180,7 +217,8 @@ public partial class MainWindow : Window
 
         if (_bouncyActive) return;
 
-        if (s.AlwaysShowPanel)
+        var previewingCustomAppearance = _settingsWindow is { IsVisible: true } && s.UseCustomPanelAppearance;
+        if (s.AlwaysShowPanel || previewingCustomAppearance)
         {
             ExpandPanel(immediate: true);
         }
@@ -192,6 +230,44 @@ public partial class MainWindow : Window
         if (s.SnapToEdge)
         {
             SnapToNearestEdge();
+        }
+    }
+
+    private void ApplyPanelAppearance(AppSettings settings)
+    {
+        if (!settings.UseCustomPanelAppearance)
+        {
+            PanelBorder.Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x1E, 0x1E, 0x2E));
+            Resources["ModuleNameBrush"] = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC));
+            Resources["ModuleValueBrush"] = Brushes.White;
+            Resources["ModuleDetailBrush"] = new SolidColorBrush(Color.FromRgb(0x8F, 0x8F, 0x9F));
+            Resources["ModuleFontFamily"] = System.Windows.SystemFonts.MessageFontFamily;
+            return;
+        }
+
+        var alpha = (byte)Math.Round(Math.Clamp(settings.PanelBackgroundOpacity, 0, 100) * 2.55);
+        var background = Color.FromArgb(
+            alpha,
+            (byte)Math.Clamp(settings.PanelBackgroundRed, 0, 255),
+            (byte)Math.Clamp(settings.PanelBackgroundGreen, 0, 255),
+            (byte)Math.Clamp(settings.PanelBackgroundBlue, 0, 255));
+        var text = Color.FromRgb(
+            (byte)Math.Clamp(settings.PanelTextRed, 0, 255),
+            (byte)Math.Clamp(settings.PanelTextGreen, 0, 255),
+            (byte)Math.Clamp(settings.PanelTextBlue, 0, 255));
+
+        PanelBorder.Background = new SolidColorBrush(background);
+        Resources["ModuleNameBrush"] = new SolidColorBrush(text);
+        Resources["ModuleValueBrush"] = new SolidColorBrush(text);
+        Resources["ModuleDetailBrush"] = new SolidColorBrush(text);
+        try
+        {
+            Resources["ModuleFontFamily"] = new System.Windows.Media.FontFamily(
+                string.IsNullOrWhiteSpace(settings.PanelFontFamily) ? "Segoe UI" : settings.PanelFontFamily);
+        }
+        catch (ArgumentException)
+        {
+            Resources["ModuleFontFamily"] = System.Windows.SystemFonts.MessageFontFamily;
         }
     }
 
@@ -315,9 +391,14 @@ public partial class MainWindow : Window
         var style = GetWindowLong(hwnd, GWL_STYLE);
         SetWindowLong(hwnd, GWL_STYLE, style | WS_THICKFRAME);
         var ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-        SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
+        var testableExStyle = _audioSpectrumUiTest
+            ? ex & ~(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW)
+            : ex | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+        SetWindowLong(hwnd, GWL_EXSTYLE, testableExStyle | WS_EX_TOPMOST);
         System.Windows.Interop.HwndSource.FromHwnd(hwnd)?.AddHook(MainWindowHook);
-        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        var initialPositionFlags = SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW;
+        if (!_audioSpectrumUiTest) initialPositionFlags |= SWP_NOACTIVATE;
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, (uint)initialPositionFlags);
 
         _topmostTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -332,10 +413,46 @@ public partial class MainWindow : Window
         PositionToRightEdge();
         StartModules();
         ApplySettings();
+        if (_audioSpectrumUiTest)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+            {
+                var workArea = SystemParameters.WorkArea;
+                var expandedWidth = PanelWidth + BallSlot + PanelMargin;
+                var expandedHeight = CalcExpandedHeight(1);
+                var panelLeft = workArea.Left + (workArea.Width - expandedWidth) / 2;
+                var panelTop = workArea.Top + (workArea.Height - expandedHeight) / 2;
+                Left = panelLeft + PanelWidth + PanelMargin - Canvas.GetLeft(BallEllipse);
+                Top = panelTop - PanelMargin;
+                _isRightSide = true;
+                _isBottomSide = false;
+                Canvas.SetTop(BallEllipse, BallMargin);
+                Canvas.SetTop(PanelBorder, PanelMargin);
+                SyncBallGlow();
+                if (_audioSpectrumUiTestCollapsed)
+                    CollapsePanel(immediate: true, force: true);
+                else
+                    ExpandPanel(immediate: true);
+            });
+        }
     }
 
     private IntPtr MainWindowHook(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        switch (message)
+        {
+            case WM_ENTERSIZEMOVE:
+                _isUserSizing = true;
+                _isUserSizingHeight = false;
+                return IntPtr.Zero;
+            case WM_EXITSIZEMOVE:
+                if (_isUserSizingHeight)
+                    _hasUserResizedHeight = true;
+                _isUserSizingHeight = false;
+                _isUserSizing = false;
+                return IntPtr.Zero;
+        }
+
         if (message != WM_NCHITTEST || !_isExpanded || _bouncyActive || !GetWindowRect(hwnd, out var rect))
             return IntPtr.Zero;
 
@@ -366,6 +483,11 @@ public partial class MainWindow : Window
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (!_isExpanded || PanelBorder.Visibility != Visibility.Visible) return;
+
+        // Remember where the ball is on screen so it can be kept there.
+        var oldBallScreenX = Left + Canvas.GetLeft(BallEllipse);
+        var oldBallScreenY = Top + Canvas.GetTop(BallEllipse);
+
         PanelBorder.Width = Math.Max(200, ActualWidth - BallSlot - PanelMargin);
         PanelBorder.Height = Math.Max(140, ActualHeight - PanelMargin * 2);
         Canvas.SetLeft(BallEllipse, _isRightSide
@@ -374,22 +496,55 @@ public partial class MainWindow : Window
         Canvas.SetTop(BallEllipse, _isBottomSide
             ? Math.Max(BallMargin, ActualHeight - BallSlot + BallMargin)
             : BallMargin);
+        Canvas.SetLeft(PanelBorder, _isRightSide ? PanelMargin : BallSlot);
+        Canvas.SetTop(PanelBorder, PanelMargin);
         SyncBallGlow();
+
+        if (_isUserSizing)
+        {
+            if (e.HeightChanged && _isExpanded && PanelBorder.Visibility == Visibility.Visible)
+                _isUserSizingHeight = true;
+            return;
+        }
+
+        // If the system resized the window differently than requested (work-area
+        // clamping, DPI change, ...), shift the window origin by the same delta so
+        // the ball's screen position - and therefore the next collapse position -
+        // stays put instead of drifting/jumping.
+        Left += oldBallScreenX - (Left + Canvas.GetLeft(BallEllipse));
+        Top += oldBallScreenY - (Top + Canvas.GetTop(BallEllipse));
     }
 
     private void PositionToRightEdge()
     {
+        // The window keeps its expanded size for its entire lifetime; expand and
+        // collapse only toggle the panel's visibility. Transparent areas are
+        // click-through, and never resizing the transparent window avoids the
+        // one-frame compositing artifacts (dark remnant / flicker) entirely.
         var workArea = SystemParameters.WorkArea;
-        Top = workArea.Top + (workArea.Height - BallSlot) / 2;
-        Left = workArea.Right - BallSlot;
+        var visibleModules = _moduleManager.Modules.Count(m => m.IsEnabled);
+        var height = CalcExpandedHeight(visibleModules);
+        height = Math.Min(height, Math.Max(180, workArea.Height));
+        var width = PanelWidth + BallSlot + PanelMargin;
+
+        MinWidth = BallSlot + PanelMargin + 200;
+        MinHeight = Math.Min(180, height);
+        Width = width;
+        Height = height;
+
+        var ballY = workArea.Top + (workArea.Height - BallSize) / 2;
         _isRightSide = true;
-        _isBottomSide = Top + BallSlot / 2 >= workArea.Top + workArea.Height / 2;
-        Width = BallSlot;
-        Height = BallSlot;
-        Canvas.SetLeft(BallEllipse, BallMargin);
-        Canvas.SetTop(BallEllipse, BallMargin);
-        SyncBallGlow();
+        _isBottomSide = ballY + BallSize / 2 >= workArea.Top + workArea.Height / 2;
+        var ballCanvasY = _isBottomSide ? height - BallSlot + BallMargin : BallMargin;
+
+        Left = workArea.Right - BallMargin - BallSize - (PanelWidth + PanelMargin);
+        Top = ballY - ballCanvasY;
+
+        Canvas.SetLeft(BallEllipse, PanelWidth + PanelMargin);
+        Canvas.SetTop(BallEllipse, ballCanvasY);
+        Canvas.SetLeft(PanelBorder, PanelMargin);
         Canvas.SetTop(PanelBorder, PanelMargin);
+        SyncBallGlow();
     }
 
     private double GetBallScreenX()
@@ -400,6 +555,25 @@ public partial class MainWindow : Window
     private double GetBallScreenY()
     {
         return Top + Canvas.GetTop(BallEllipse);
+    }
+
+    // Ball's monitor working area in WPF (DIP) units.
+    private (double Left, double Top, double Right, double Bottom) GetBallWorkArea()
+    {
+        var ballCenter = PointToScreen(new Point(
+            Canvas.GetLeft(BallEllipse) + BallSize / 2,
+            Canvas.GetTop(BallEllipse) + BallSize / 2));
+        var screen = System.Windows.Forms.Screen.FromPoint(
+            new System.Drawing.Point((int)ballCenter.X, (int)ballCenter.Y));
+        var source = PresentationSource.FromVisual(this);
+        double scaleX = 1, scaleY = 1;
+        if (source?.CompositionTarget != null)
+        {
+            scaleX = source.CompositionTarget.TransformFromDevice.M11;
+            scaleY = source.CompositionTarget.TransformFromDevice.M22;
+        }
+        var wa = screen.WorkingArea;
+        return (wa.Left * scaleX, wa.Top * scaleY, wa.Right * scaleX, wa.Bottom * scaleY);
     }
 
     private void SyncBallGlow()
@@ -424,57 +598,27 @@ public partial class MainWindow : Window
 
     private void ExpandPanel(bool immediate = false)
     {
+        if (_panelCollapsing)
+        {
+            // The cursor came back before the collapse fade finished; restore the panel.
+            _panelCollapsing = false;
+            PanelBorder.BeginAnimation(OpacityProperty, null);
+            PanelBorder.Opacity = 1;
+            if (_isExpanded) return;
+        }
+
         if (_isExpanded) return;
         _isExpanded = true;
 
-        var ballX = GetBallScreenX();
-        var ballY = GetBallScreenY();
-
-        var visibleModules = _moduleManager.Modules.Count(m => m.IsEnabled);
-        var targetHeight = CalcExpandedHeight(visibleModules);
-        var targetWidth = PanelWidth + BallSlot + PanelMargin;
-
-        BeginAnimation(LeftProperty, null);
-        BeginAnimation(TopProperty, null);
-
-        Width = targetWidth;
-        Height = targetHeight;
-        MinWidth = BallSlot + PanelMargin + 200;
-        MinHeight = 180;
-
-        PanelBorder.Width = PanelWidth;
-        PanelBorder.Height = targetHeight - PanelMargin * 2;
+        // The window already has its final size; showing the panel is purely a
+        // visibility change, so no transparent-window resize artifacts occur.
+        PanelBorder.Width = Math.Max(200, ActualWidth - BallSlot - PanelMargin);
+        PanelBorder.Height = Math.Max(140, ActualHeight - PanelMargin * 2);
+        Canvas.SetLeft(PanelBorder, _isRightSide ? PanelMargin : BallSlot);
+        Canvas.SetTop(PanelBorder, PanelMargin);
         PanelBorder.Visibility = Visibility.Visible;
-
-        if (_isRightSide)
-        {
-            Canvas.SetLeft(PanelBorder, PanelMargin);
-            Canvas.SetLeft(BallEllipse, PanelWidth + PanelMargin);
-            Left = ballX - PanelWidth - PanelMargin;
-        }
-        else
-        {
-            Canvas.SetLeft(BallEllipse, BallMargin);
-            Canvas.SetLeft(PanelBorder, BallSlot);
-            Left = ballX - BallMargin;
-        }
-
-        if (_isBottomSide)
-        {
-            // expand upward when docked to bottom
-            Top = ballY - targetHeight + BallSlot - BallMargin;
-            Canvas.SetTop(BallEllipse, targetHeight - BallSlot + BallMargin);
-            Canvas.SetTop(PanelBorder, PanelMargin);
-        }
-        else
-        {
-            // expand upward when docked to bottom
-            Top = ballY - BallMargin;
-            Canvas.SetTop(BallEllipse, BallMargin);
-            Canvas.SetTop(PanelBorder, PanelMargin);
-        }
-
-        SyncBallGlow();
+        UpdateAudioSpectrumActivity();
+        ResizeExpandedPanelToCurrentModules();
 
         PanelBorder.Opacity = 0;
         var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(120));
@@ -483,33 +627,77 @@ public partial class MainWindow : Window
 
     private void CollapsePanel(bool immediate = false, bool force = false)
     {
-        if (!_isExpanded) return;
+        if (!_isExpanded && PanelBorder.Visibility != Visibility.Visible)
+        {
+            UpdateAudioSpectrumActivity();
+            return;
+        }
+
+        if (_settings.Current.AlwaysShowPanel && !force)
+        {
+            UpdateAudioSpectrumActivity();
+            return;
+        }
+
+        if (!immediate && PanelBorder.Visibility == Visibility.Visible)
+        {
+            if (_panelCollapsing) return;
+            // Fade the panel out before hiding it so the collapse reads as one
+            // smooth motion; the window geometry never changes here.
+            _panelCollapsing = true;
+            var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(100));
+            fade.Completed += (s, e) =>
+            {
+                if (_panelCollapsing) FinishPanelCollapse();
+            };
+            PanelBorder.BeginAnimation(OpacityProperty, fade);
+            return;
+        }
+
+        FinishPanelCollapse();
+    }
+
+    private void FinishPanelCollapse()
+    {
+        _panelCollapsing = false;
+        PanelBorder.BeginAnimation(OpacityProperty, null);
+        PanelBorder.Opacity = 1;
         _isExpanded = false;
-
-        if (_settings.Current.AlwaysShowPanel && !force) return;
-
-        var ballX = GetBallScreenX();
-        var ballY = GetBallScreenY();
-
-        BeginAnimation(LeftProperty, null);
-        BeginAnimation(TopProperty, null);
-
-        Width = BallSlot;
-        Height = BallSlot;
-        MinWidth = 0;
-        MinHeight = 0;
-        Canvas.SetLeft(BallEllipse, BallMargin);
-        Canvas.SetTop(BallEllipse, BallMargin);
-        SyncBallGlow();
-        Left = ballX - BallMargin;
-        Top = ballY - BallMargin;
-
         PanelBorder.Visibility = Visibility.Collapsed;
+        UpdateAudioSpectrumActivity();
+    }
+
+    private void ResizeExpandedPanelToCurrentModules()
+    {
+        // Keep a manually selected panel height across hover collapse/expand.
+        // Without this, every unpinned re-expand resets the user's resize to the
+        // automatic module-based height.
+        if (_hasUserResizedHeight) return;
+
+        var targetHeight = Math.Max(MinHeight, CalcExpandedHeight(_moduleManager.Modules.Count(module => module.IsEnabled)));
+        if (Math.Abs(targetHeight - Height) < 1) return;
+
+        var ballScreenY = GetBallScreenY();
+        var workArea = GetBallWorkArea();
+        targetHeight = Math.Min(targetHeight, Math.Max(MinHeight, workArea.Bottom - workArea.Top));
+        var difference = targetHeight - Height;
+        var desiredTop = _isBottomSide ? Top - difference : Top;
+        Top = Math.Clamp(desiredTop, workArea.Top, Math.Max(workArea.Top, workArea.Bottom - targetHeight));
+        Height = targetHeight;
+        PanelBorder.Height = targetHeight - PanelMargin * 2;
+        Canvas.SetTop(BallEllipse, ballScreenY - Top);
+        SyncBallGlow();
     }
 
     private void HoverTimer_Tick(object? sender, EventArgs e)
     {
-        if (_bouncyActive || _isDragging || _isMouseDown) return;
+        if (_audioSpectrumUiTestCollapsed || _bouncyActive || _isDragging || _isMouseDown) return;
+
+        if (_settingsWindow is { IsVisible: true } && _settings.Current.UseCustomPanelAppearance)
+        {
+            if (!_isExpanded) ExpandPanel(immediate: true);
+            return;
+        }
 
         var src = PresentationSource.FromVisual(this);
         double scaleX = 1, scaleY = 1;
@@ -524,10 +712,28 @@ public partial class MainWindow : Window
         var relX = (cursor.X - winOrigin.X) * scaleX;
         var relY = (cursor.Y - winOrigin.Y) * scaleY;
 
-        bool inWindow = relX >= 0 && relX <= ActualWidth
-                     && relY >= 0 && relY <= ActualHeight;
+        // Anchor the hover zones to the ball and panel instead of the window rect:
+        // the window moves/resizes between the collapsed and expanded states, so a
+        // cursor resting near the ball's edge (e.g. the transparent margin strips on
+        // the docked side) would flip in/out of the window rect on every tick and
+        // make the panel and ball flicker between two positions.
+        var ballLeft = Canvas.GetLeft(BallEllipse);
+        var ballTop = Canvas.GetTop(BallEllipse);
+        bool inBallZone = relX >= ballLeft - BallHoverMargin && relX <= ballLeft + BallSize + BallHoverMargin
+                       && relY >= ballTop - BallHoverMargin && relY <= ballTop + BallSize + BallHoverMargin;
 
-        if (inWindow && !_isHoveringBall)
+        bool inPanelZone = false;
+        if (_isExpanded && PanelBorder.Visibility == Visibility.Visible)
+        {
+            var panelLeft = Canvas.GetLeft(PanelBorder);
+            var panelTop = Canvas.GetTop(PanelBorder);
+            inPanelZone = relX >= panelLeft - PanelHoverMargin && relX <= panelLeft + PanelBorder.ActualWidth + PanelHoverMargin
+                       && relY >= panelTop - PanelHoverMargin && relY <= panelTop + PanelBorder.ActualHeight + PanelHoverMargin;
+        }
+
+        bool inHoverZone = inBallZone || inPanelZone;
+
+        if (inHoverZone && !_isHoveringBall)
         {
             _isHoveringBall = true;
             BallScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty,
@@ -541,7 +747,7 @@ public partial class MainWindow : Window
                 ExpandPanel();
             }
         }
-        else if (!inWindow && _isHoveringBall)
+        else if (!inHoverZone && _isHoveringBall)
         {
             _isHoveringBall = false;
             BallScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty,
@@ -592,8 +798,8 @@ public partial class MainWindow : Window
             CollapsePanel(immediate: true, force: _settings.Current.AlwaysShowPanel);
         }
 
-        _dragStartLeft = Left;
-        _dragStartTop = Top;
+        _dragStartBallScreenX = GetBallScreenX();
+        _dragStartBallScreenY = GetBallScreenY();
         _isDragging = false;
         _dragStarted = false;
         BallEllipse.CaptureMouse();
@@ -623,8 +829,12 @@ public partial class MainWindow : Window
                 scaleY = src.CompositionTarget.TransformFromDevice.M22;
             }
 
-            var newLeft = _dragStartLeft + dxDevice * scaleX;
-            var newTop = _dragStartTop + dyDevice * scaleY;
+            // Anchor the drag to the BALL's screen position, not the window's:
+            // the collapse shrink can apply mid-drag and change the window origin,
+            // so deriving the window position from the ball (with the canvas
+            // offset read fresh each move) keeps the ball glued to the cursor.
+            var targetBallX = _dragStartBallScreenX + dxDevice * scaleX;
+            var targetBallY = _dragStartBallScreenY + dyDevice * scaleY;
 
             var vs = SystemInformation.VirtualScreen;
             double vsLeft = vs.Left * scaleX;
@@ -632,13 +842,13 @@ public partial class MainWindow : Window
             double vsRight = vs.Right * scaleX;
             double vsBottom = vs.Bottom * scaleY;
 
-            if (newLeft < vsLeft) newLeft = vsLeft;
-            if (newLeft + BallSlot > vsRight) newLeft = vsRight - BallSlot;
-            if (newTop < vsTop) newTop = vsTop;
-            if (newTop + BallSlot > vsBottom) newTop = vsBottom - BallSlot;
+            if (targetBallX < vsLeft) targetBallX = vsLeft;
+            if (targetBallX + BallSize > vsRight) targetBallX = vsRight - BallSize;
+            if (targetBallY < vsTop) targetBallY = vsTop;
+            if (targetBallY + BallSize > vsBottom) targetBallY = vsBottom - BallSize;
 
-            Left = newLeft;
-            Top = newTop;
+            Left = targetBallX - Canvas.GetLeft(BallEllipse);
+            Top = targetBallY - Canvas.GetTop(BallEllipse);
         }
     }
 
@@ -692,10 +902,35 @@ public partial class MainWindow : Window
         var waTop = wa.Top * scaleY;
         var waHeight = wa.Height * scaleY;
 
-        var ballCenterX = Left + BallSlot / 2;
-        var ballCenterY = Top + BallSlot / 2;
+        var ballCenterX = GetBallScreenX() + BallSize / 2;
+        var ballCenterY = GetBallScreenY() + BallSize / 2;
         _isRightSide = ballCenterX >= waLeft + waWidth / 2;
         _isBottomSide = ballCenterY >= waTop + waHeight / 2;
+        RelayoutDockedCanvas();
+    }
+
+    // Re-arranges the ball/panel canvas positions for the current dock side
+    // (ball in the docked corner, panel on the opposite side) and shifts the
+    // window origin by the same delta so the ball's screen position is kept.
+    private void RelayoutDockedCanvas()
+    {
+        var oldBallX = Canvas.GetLeft(BallEllipse);
+        var oldBallY = Canvas.GetTop(BallEllipse);
+
+        var newBallX = _isRightSide ? Math.Max(BallMargin, ActualWidth - BallSlot) : BallMargin;
+        var newBallY = _isBottomSide ? Math.Max(BallMargin, ActualHeight - BallSlot + BallMargin) : BallMargin;
+        if (Math.Abs(newBallX - oldBallX) < 0.01 && Math.Abs(newBallY - oldBallY) < 0.01) return;
+
+        Canvas.SetLeft(BallEllipse, newBallX);
+        Canvas.SetTop(BallEllipse, newBallY);
+        Canvas.SetLeft(PanelBorder, _isRightSide ? PanelMargin : BallSlot);
+        Canvas.SetTop(PanelBorder, PanelMargin);
+        SyncBallGlow();
+
+        BeginAnimation(LeftProperty, null);
+        BeginAnimation(TopProperty, null);
+        Left += oldBallX - newBallX;
+        Top += oldBallY - newBallY;
     }
 
     private void SnapToNearestEdge(Action? onCompleted = null)
@@ -746,14 +981,30 @@ public partial class MainWindow : Window
 
         if (Math.Abs(targetLeft - Left) < 0.5 && Math.Abs(targetTop - Top) < 0.5)
         {
+            RelayoutDockedCanvas();
             onCompleted?.Invoke();
             return;
         }
 
+        // Commit the final position to the base value once the animation finishes:
+        // HoldEnd animations keep Left/Top "held", and a later BeginAnimation(null)
+        // (expand/collapse) would otherwise revert them to the stale pre-snap base
+        // and teleport the window.
         var slide = new DoubleAnimation(Left, targetLeft, TimeSpan.FromMilliseconds(120));
+        slide.Completed += (s, e) =>
+        {
+            BeginAnimation(LeftProperty, null);
+            Left = targetLeft;
+        };
         BeginAnimation(LeftProperty, slide);
         var slideY = new DoubleAnimation(Top, targetTop, TimeSpan.FromMilliseconds(120));
-        slideY.Completed += (s, e) => onCompleted?.Invoke();
+        slideY.Completed += (s, e) =>
+        {
+            BeginAnimation(TopProperty, null);
+            Top = targetTop;
+            RelayoutDockedCanvas();
+            onCompleted?.Invoke();
+        };
         BeginAnimation(TopProperty, slideY);
     }
 
@@ -770,12 +1021,6 @@ public partial class MainWindow : Window
             _settings.Update(s => s.SnapToEdge = false);
 
         CollapsePanel(immediate: true, force: true);
-
-        Width = BallSlot;
-        Height = BallSlot;
-        Canvas.SetLeft(BallEllipse, BallMargin);
-        Canvas.SetTop(BallEllipse, BallMargin);
-        SyncBallGlow();
 
         var angle = _bouncyRng.NextDouble() * Math.PI * 2;
         var speed = 320 + _bouncyRng.NextDouble() * 160;
@@ -862,8 +1107,8 @@ public partial class MainWindow : Window
             var mouseX = cursor.X * scaleX;
             var mouseY = cursor.Y * scaleY;
 
-            var ballCenterX = Left + BallMargin + BallSize / 2;
-            var ballCenterY = Top + BallMargin + BallSize / 2;
+            var ballCenterX = GetBallScreenX() + BallSize / 2;
+            var ballCenterY = GetBallScreenY() + BallSize / 2;
             var dx = ballCenterX - mouseX;
             var dy = ballCenterY - mouseY;
             var dist = Math.Sqrt(dx * dx + dy * dy);
@@ -881,34 +1126,36 @@ public partial class MainWindow : Window
         Top += _bouncyVelocity.Y * dt;
         BallRotate.Angle += _bouncyAngularVelocity * dt;
 
+        var ballX = Left + Canvas.GetLeft(BallEllipse);
+        var ballY = Top + Canvas.GetTop(BallEllipse);
         var screen = System.Windows.Forms.Screen.FromPoint(
-            new System.Drawing.Point((int)(Left + BallSlot / 2), (int)(Top + BallSlot / 2)));
+            new System.Drawing.Point((int)(ballX + BallSize / 2), (int)(ballY + BallSize / 2)));
         var waLeft = screen.WorkingArea.Left * scaleX;
         var waTop = screen.WorkingArea.Top * scaleY;
         var waRight = screen.WorkingArea.Right * scaleX;
         var waBottom = screen.WorkingArea.Bottom * scaleY;
 
-        if (Left < waLeft)
+        if (ballX < waLeft)
         {
-            Left = waLeft;
+            Left += waLeft - ballX;
             _bouncyVelocity.X = Math.Abs(_bouncyVelocity.X) * BouncyRestitution;
             _bouncyAngularVelocity = -_bouncyAngularVelocity * 0.85;
         }
-        else if (Left + BallSlot > waRight)
+        else if (ballX + BallSize > waRight)
         {
-            Left = waRight - BallSlot;
+            Left += waRight - (ballX + BallSize);
             _bouncyVelocity.X = -Math.Abs(_bouncyVelocity.X) * BouncyRestitution;
             _bouncyAngularVelocity = -_bouncyAngularVelocity * 0.85;
         }
-        if (Top < waTop)
+        if (ballY < waTop)
         {
-            Top = waTop;
+            Top += waTop - ballY;
             _bouncyVelocity.Y = Math.Abs(_bouncyVelocity.Y) * BouncyRestitution;
             _bouncyAngularVelocity = -_bouncyAngularVelocity * 0.85;
         }
-        else if (Top + BallSlot > waBottom)
+        else if (ballY + BallSize > waBottom)
         {
-            Top = waBottom - BallSlot;
+            Top += waBottom - (ballY + BallSize);
             _bouncyVelocity.Y = -Math.Abs(_bouncyVelocity.Y) * BouncyRestitution;
             _bouncyAngularVelocity = -_bouncyAngularVelocity * 0.85;
         }
@@ -950,6 +1197,12 @@ public partial class MainWindow : Window
 
         _settingsWindow = new SettingsWindow(_settings, _moduleManager);
         _settingsWindow.Owner = this;
+        _settingsWindow.Closed += (_, _) =>
+        {
+            _settingsWindow = null;
+            if (!_settings.Current.AlwaysShowPanel && !_isHoveringBall)
+                CollapsePanel(immediate: true);
+        };
         _settingsWindow.Show();
     }
 
@@ -963,6 +1216,7 @@ public partial class MainWindow : Window
         {
             Visibility = Visibility.Visible;
         }
+        UpdateAudioSpectrumActivity();
     }
 
     private async void ShutdownApp()
@@ -1102,6 +1356,8 @@ public partial class MainWindow : Window
 
     private void Window_Deactivated(object sender, EventArgs e)
     {
+        if (_audioSpectrumUiTest) return;
+        if (_settingsWindow is { IsVisible: true } && _settings.Current.UseCustomPanelAppearance) return;
         if (!_settings.Current.AlwaysShowPanel && !_isHoveringBall && !IsMouseOverPanel())
         {
             CollapsePanel();

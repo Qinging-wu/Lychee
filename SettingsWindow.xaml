@@ -142,6 +142,8 @@
                         <TextBox x:Name="BackgroundGreenTextBox" Width="38" MaxLength="3" TextChanged="AppearanceColor_Changed"/>
                         <TextBlock Text="B" Foreground="#FFAAAAAA" VerticalAlignment="Center" Margin="5,0,2,0"/>
                         <TextBox x:Name="BackgroundBlueTextBox" Width="38" MaxLength="3" TextChanged="AppearanceColor_Changed"/>
+                        <Button Content="Precise…" Height="24" Margin="6,0,0,0" Padding="6,0"
+                                Click="PickBackgroundColor_Click" Cursor="Hand"/>
                     </StackPanel>
 
                     <TextBlock Grid.Row="2" Text="Text RGB" Foreground="#FFCCCCCC"
@@ -153,6 +155,8 @@
                         <TextBox x:Name="TextGreenTextBox" Width="38" MaxLength="3" TextChanged="AppearanceColor_Changed"/>
                         <TextBlock Text="B" Foreground="#FFAAAAAA" VerticalAlignment="Center" Margin="5,0,2,0"/>
                         <TextBox x:Name="TextBlueTextBox" Width="38" MaxLength="3" TextChanged="AppearanceColor_Changed"/>
+                        <Button Content="Precise…" Height="24" Margin="6,0,0,0" Padding="6,0"
+                                Click="PickTextColor_Click" Cursor="Hand"/>
                     </StackPanel>
 
                     <TextBlock Grid.Row="3" Text="Background opacity" Foreground="#FFCCCCCC"

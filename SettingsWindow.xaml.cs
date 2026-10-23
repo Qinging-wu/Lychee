@@ -112,6 +112,35 @@ public partial class SettingsWindow : Window
         RefreshAppearancePreview();
     }
 
+    private void PickBackgroundColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadRgb(BackgroundRedTextBox, BackgroundGreenTextBox, BackgroundBlueTextBox, out var rgb))
+            rgb = (_settings.Current.PanelBackgroundRed, _settings.Current.PanelBackgroundGreen, _settings.Current.PanelBackgroundBlue);
+        PickColor(rgb, BackgroundRedTextBox, BackgroundGreenTextBox, BackgroundBlueTextBox);
+    }
+
+    private void PickTextColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadRgb(TextRedTextBox, TextGreenTextBox, TextBlueTextBox, out var rgb))
+            rgb = (_settings.Current.PanelTextRed, _settings.Current.PanelTextGreen, _settings.Current.PanelTextBlue);
+        PickColor(rgb, TextRedTextBox, TextGreenTextBox, TextBlueTextBox);
+    }
+
+    private void PickColor((int R, int G, int B) rgb, System.Windows.Controls.TextBox redBox,
+        System.Windows.Controls.TextBox greenBox, System.Windows.Controls.TextBox blueBox)
+    {
+        var picker = new ColorPickerWindow(Color.FromRgb((byte)rgb.R, (byte)rgb.G, (byte)rgb.B))
+        {
+            Owner = this
+        };
+        if (picker.ShowDialog() != true) return;
+
+        redBox.Text = picker.SelectedColor.R.ToString();
+        greenBox.Text = picker.SelectedColor.G.ToString();
+        blueBox.Text = picker.SelectedColor.B.ToString();
+        EnableCustomAppearance();
+    }
+
     private static bool TryReadRgb(
         System.Windows.Controls.TextBox redBox,
         System.Windows.Controls.TextBox greenBox,

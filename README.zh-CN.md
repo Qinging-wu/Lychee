@@ -44,11 +44,19 @@ curl -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 
 - **💻 CPU 使用率** — 通过 `GetSystemTimes` 采集全核利用率，每秒刷新
 - **🧠 内存** — 通过 `GlobalMemoryStatusEx` 获取 RAM 占用和页面文件统计
 - **⏱️ 网络延迟** — 每 5 秒 ping 223.5.5.5 / 1.1.1.1 / 8.8.8.8，取最优值
+- **🔊 音频频谱** — 显示默认输出设备总体电平、百分比和 dBFS；面板展开时绘制 16 段实时频谱、峰值标记与粒子
 - **🖼️ 帧性能**（v1.2.0）— 两种模式：
   - *桌面输出* — 通过 `DwmGetCompositionTimingInfo` 采样 DWM 合成帧率，显示 FPS + 显示刷新率
   - *前台应用* — 启动 PresentMon 2.5.1 采集进程级帧呈现，报告当前 FPS、60 秒平均、1% Low 和帧范围。需要**管理员权限**或加入 `Performance Log Users` 组
 
 每个模块都可以在设置中单独开关。
+
+### 悬浮球与面板
+
+- 可选择内置悬浮球样式，或导入 PNG、JPEG、BMP 图片及动态 GIF。
+- 展开面板后可拖动外侧边缘或角落缩放。缩放时悬浮球保持原位，手动调整的面板高度也会在重新展开后保留。
+- 设置中的“自定义面板外观”区域可折叠且保持紧凑，可调整背景透明度、背景和文字 RGB 颜色及字体。每种颜色都有独立的精确选择器，支持色谱、RGB 和 Hex 输入；修改会实时预览，“恢复默认”可还原原始外观。
+- 切换功能模块（包括 Audio meter）时，悬浮球会保持屏幕位置，并留在所在显示器的工作区内。
 
 ### 帧性能模式
 
@@ -63,6 +71,7 @@ curl -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 
 
 | 版本 | 变更 | 说明 |
 |---|---|---|
+| v2.0.0 | 🔊 音频频谱与自定义外观 | 新增 16 段实时频谱、悬浮球样式、可缩放面板和 RGB/字体自定义；修复模块切换时球体移位及相关交互问题 |
 | v1.4.0 | ??? | 什么都没有发生 (?) |
 | v1.3.0 | 🧲 吸附边缘 | 拖拽结束后悬浮球自动吸附到最近的屏幕边缘（可在设置中开关） |
 | v1.2.0 | 🖼️ 帧性能 | 不再是实验性功能 |
@@ -95,9 +104,23 @@ curl -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 
 需要 .NET SDK 8.0+（包含 WPF + WinForms 工作负载）。
 
 ```powershell
-dotnet build -c Release
+dotnet build -c Release -r win-x64
 dotnet publish -c Release -r win-x64
 ```
+
+项目保持 .NET 8，并固定使用 `NAudio.Wasapi` 2.2.1 采集 WASAPI Loopback 音频。
+
+频谱检查：
+
+```powershell
+dotnet run --project tests/Lychee.AudioSpectrum.SmokeTests -c Release
+dotnet run --project tests/Lychee.AudioSpectrum.VisualChecks -c Debug
+dotnet run --project tests/Lychee.AudioCapture.IntegrationChecks -c Debug -- 15
+dotnet run --project tests/Lychee.AudioSpectrum.VisualChecks -c Release -- --live 15 docs/audio-spectrum-live.png
+dotnet run --project tests/Lychee.AudioSpectrum.ProcessResourceProbe -c Release -- 1800
+```
+
+第一条使用已知频率以及 float32/float64、PCM 格式验证分析器；可视化检查会离屏绘制确定性预览、验证旧频谱帧衰减，并检查 125%/150% DPI。实时渲染模式会被动捕获一帧 16 段频谱并将正式控件渲染为 PNG（不保存原始音频）；测试期间请持续播放音乐。30 分钟进程探针会打印目标可执行文件路径和启动时间，请确认它是 Lychee-Lite；若有多个 Lychee 进程可传入 PID。面板展开时按 E，收起时按 C，为采样分组。
 
 产物路径：`bin\Release\net8.0-windows\win-x64\publish\Lychee.exe`（自包含，双击运行）。
 
@@ -119,12 +142,20 @@ Lychee/
 │   ├── MemoryModule.cs
 │   ├── LatencyModule.cs
 │   └── FpsModule.cs            # v1.2.0 · 帧性能
+├── Controls/
+│   └── AudioSpectrumView.cs    # 16 段 WPF 频谱、峰值保持与粒子
 ├── Core/
+│   ├── FloatingBallStyles.cs   # 内置与导入的悬浮球样式
+│   ├── SpectrumFrame.cs           # 不可变的 16 段频谱快照
+│   ├── SpectrumAnalyzer.cs        # PCM 解码、Hann 窗 FFT 与对数频段
+│   ├── WasapiAudioCaptureSource.cs # 有界 Loopback 采集与设备恢复
 │   ├── FrameMetrics.cs         # 帧监控类型与接口
 │   ├── DwmFrameMetricsSource.cs
 │   ├── PresentMonFrameMetricsSource.cs
 │   ├── ForegroundProcessProvider.cs
 │   └── ...
+├── ColorPickerWindow.xaml      # 色谱、RGB 与 Hex 精确取色器
+├── SettingsWindow.xaml         # 模块、样式和外观设置
 ```
 
 ### 🔌 模块接口

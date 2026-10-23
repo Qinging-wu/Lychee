@@ -44,11 +44,19 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 - **💻 CPU usage** — per-core utilization via `GetSystemTimes`, refreshes every second
 - **🧠 Memory** — RAM and page file stats via `GlobalMemoryStatusEx`
 - **⏱️ Network latency** — pings 223.5.5.5 / 1.1.1.1 / 8.8.8.8 every 5s, reports the best RTT
+- **🔊 Audio meter** — shows output level percentage and dBFS; while the panel is open, renders a 16-band live spectrum with peak holds and particles
 - **🖼️ Frame Performance** (v1.2.0) — two modes:
   - *Desktop output* — samples DWM composition cadence via `DwmGetCompositionTimingInfo`, shows FPS + display refresh rate
   - *Foreground app* — launches PresentMon 2.5.1 to capture per-process frame presents, reports current FPS, 60s average, 1% low, and frame range. Requires **administrator privileges** or membership in `Performance Log Users` group
 
 Each module can be toggled on/off individually in Settings.
+
+### Floating ball and panel
+
+- Choose a built-in floating ball style or import a PNG, JPEG, BMP, or animated GIF.
+- Resize the expanded panel by dragging an outer edge or corner. The floating ball stays in place, and a manually selected panel height is retained when the panel is reopened.
+- In the compact, collapsible **Custom panel appearance** section in Settings, adjust background opacity, background and text RGB colors, and font. Each color has its own precise picker with spectrum, RGB, and Hex controls; changes preview live, and **Reset default** restores the original appearance.
+- Toggling modules, including Audio meter, preserves the floating ball's screen position and keeps it within the monitor's working area.
 
 ### Frame Performance modes
 
@@ -63,6 +71,7 @@ Foreground app mode requires administrator privileges or membership in the Windo
 
 | Version | Change | Detail |
 |---|---|---|
+| v2.0.0 | 🔊 Audio spectrum and custom appearance | Adds a 16-band live spectrum, floating ball styles, a resizable panel, and RGB/font customization; fixes ball movement during module toggles and related interactions |
 | v1.4.0 | ??? | Nothing happened (?) |
 | v1.3.0 | 🧲 Snap to edge | Floating ball snaps to the nearest screen edge after dragging (toggle in Settings) |
 | v1.2.0 | 🖼️ Frame Performance | No longer experimental |
@@ -95,9 +104,23 @@ When the public IP changes (possible VPN drop or network switch), a red toast po
 Requires .NET SDK 8.0+ with WPF and WinForms workloads.
 
 ```powershell
-dotnet build -c Release
+dotnet build -c Release -r win-x64
 dotnet publish -c Release -r win-x64
 ```
+
+The project targets .NET 8 and pins `NAudio.Wasapi` 2.2.1 for WASAPI loopback capture.
+
+Spectrum checks:
+
+```powershell
+dotnet run --project tests/Lychee.AudioSpectrum.SmokeTests -c Release
+dotnet run --project tests/Lychee.AudioSpectrum.VisualChecks -c Debug
+dotnet run --project tests/Lychee.AudioCapture.IntegrationChecks -c Debug -- 15
+dotnet run --project tests/Lychee.AudioSpectrum.VisualChecks -c Release -- --live 15 docs/audio-spectrum-live.png
+dotnet run --project tests/Lychee.AudioSpectrum.ProcessResourceProbe -c Release -- 1800
+```
+
+The first command tests known tones, float32/float64, and PCM formats; the visual check renders a deterministic preview, verifies stale-frame decay, and checks 125%/150% output DPI. The live-render option captures a fresh 16-band Loopback frame and renders the production control to PNG (no raw audio is saved); keep music playing. The 30-minute process probe prints the selected executable path and start time (verify it is the Lychee-Lite build); pass a PID if more than one Lychee process is running, then press E/C to label expanded/collapsed samples.
 
 Output: `bin\Release\net8.0-windows\win-x64\publish\Lychee.exe` (self-contained, double-click to run).
 
@@ -119,12 +142,20 @@ Lychee/
 │   ├── MemoryModule.cs
 │   ├── LatencyModule.cs
 │   └── FpsModule.cs            # v1.2.0 · Frame Performance
+├── Controls/
+│   └── AudioSpectrumView.cs    # 16-band WPF spectrum, peak holds, and particles
 ├── Core/
+│   ├── FloatingBallStyles.cs   # Built-in and imported floating ball styles
+│   ├── SpectrumFrame.cs         # Immutable 16-band snapshot
+│   ├── SpectrumAnalyzer.cs      # PCM decode, Hann-window FFT, logarithmic bands
+│   ├── WasapiAudioCaptureSource.cs # Bounded loopback capture and device recovery
 │   ├── FrameMetrics.cs         # Frame monitoring types & interfaces
 │   ├── DwmFrameMetricsSource.cs
 │   ├── PresentMonFrameMetricsSource.cs
 │   ├── ForegroundProcessProvider.cs
 │   └── ...
+├── ColorPickerWindow.xaml      # Spectrum, RGB, and Hex color picker
+├── SettingsWindow.xaml         # Module, style, and appearance settings
 ```
 
 ### 🔌 Module interface

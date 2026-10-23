@@ -122,6 +122,7 @@
                  RenderTransformOrigin="0.5,0.5"
                  MouseLeftButtonDown="Ball_MouseLeftButtonDown"
                  MouseLeftButtonUp="Ball_MouseLeftButtonUp"
+                 LostMouseCapture="Ball_MouseCaptureLost"
                  MouseMove="Ball_MouseMove"
                  Cursor="SizeAll">
             <Ellipse.RenderTransform>

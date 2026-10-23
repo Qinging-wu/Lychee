@@ -77,8 +77,14 @@ public partial class MainWindow : Window
     private bool _isUserSizing;
     private bool _isUserSizingHeight;
     private bool _hasUserResizedHeight;
+    private bool _hasPendingModuleResizeAnchor;
+    private double _moduleResizeAnchorX;
+    private double _moduleResizeAnchorY;
     private bool _dragStarted;
     private bool _restorePinnedAfterDrag;
+    private bool _lastAppliedSnapToEdge;
+    private string? _appliedBallStyleId;
+    private string? _appliedCustomBallImagePath;
     private Point _dragStartScreen;
     private double _dragStartBallScreenX;
     private double _dragStartBallScreenY;
@@ -187,6 +193,32 @@ public partial class MainWindow : Window
         ModuleList.ItemsSource = visibleModules;
         if (_isExpanded)
             ResizeExpandedPanelToCurrentModules();
+
+        // Changing the module count can resize the expanded window and move its
+        // origin. Re-anchor it if that resize left the floating ball outside the
+        // working area, including when a manually selected panel height is kept.
+        KeepFloatingBallWithinWorkArea();
+    }
+
+    private void KeepFloatingBallWithinWorkArea()
+    {
+        // RefreshModuleList also runs from the constructor, before the window has
+        // a presentation source and valid screen coordinates.
+        if (PresentationSource.FromVisual(this) is null) return;
+
+        var workArea = GetBallWorkArea();
+        var ballScreenX = GetBallScreenX();
+        var ballScreenY = GetBallScreenY();
+        var targetX = Math.Clamp(ballScreenX, workArea.Left, Math.Max(workArea.Left, workArea.Right - BallSize));
+        var targetY = Math.Clamp(ballScreenY, workArea.Top, Math.Max(workArea.Top, workArea.Bottom - BallSize));
+        if (Math.Abs(targetX - ballScreenX) < 0.5 && Math.Abs(targetY - ballScreenY) < 0.5) return;
+
+        // Clear an in-flight snap animation before applying absolute screen-space
+        // corrections; otherwise its animated value can overwrite the correction.
+        BeginAnimation(LeftProperty, null);
+        BeginAnimation(TopProperty, null);
+        Left += targetX - ballScreenX;
+        Top += targetY - ballScreenY;
     }
 
     private double CalcExpandedHeight(int moduleCount)
@@ -227,10 +259,11 @@ public partial class MainWindow : Window
             CollapsePanel(immediate: true);
         }
 
-        if (s.SnapToEdge)
+        if (s.SnapToEdge && !_lastAppliedSnapToEdge)
         {
             SnapToNearestEdge();
         }
+        _lastAppliedSnapToEdge = s.SnapToEdge;
     }
 
     private void ApplyPanelAppearance(AppSettings settings)
@@ -273,6 +306,14 @@ public partial class MainWindow : Window
 
     private void ApplyBallStyle()
     {
+        var styleId = _settings.Current.FloatingBallStyle;
+        var customImagePath = _settings.Current.CustomBallImagePath;
+        if (string.Equals(_appliedBallStyleId, styleId, StringComparison.Ordinal) &&
+            string.Equals(_appliedCustomBallImagePath, customImagePath, StringComparison.Ordinal))
+        {
+            return;
+        }
+
         _ballGifTimer?.Stop();
         _ballGifTimer = null;
         _ballGifFrames = null;
@@ -280,8 +321,8 @@ public partial class MainWindow : Window
         _ballGifFrameIndex = 0;
 
         var style = FloatingBallStyles.Get(
-            _settings.Current.FloatingBallStyle,
-            _settings.Current.CustomBallImagePath);
+            styleId,
+            customImagePath);
 
         var isCustom = style.Id == FloatingBallStyles.CustomId;
         var imageUri = isCustom
@@ -354,6 +395,8 @@ public partial class MainWindow : Window
             ImageSource = imageSource,
             Stretch = Stretch.UniformToFill
         };
+        _appliedBallStyleId = styleId;
+        _appliedCustomBallImagePath = customImagePath;
     }
 
     private static TimeSpan GetGifFrameDelay(BitmapFrame frame)
@@ -482,11 +525,23 @@ public partial class MainWindow : Window
 
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (!_isExpanded || PanelBorder.Visibility != Visibility.Visible) return;
+        if (!_isExpanded || PanelBorder.Visibility != Visibility.Visible)
+        {
+            // A deferred size event can arrive after the panel has collapsed.
+            // Do not let its old anchor affect a later, unrelated resize.
+            _hasPendingModuleResizeAnchor = false;
+            return;
+        }
 
-        // Remember where the ball is on screen so it can be kept there.
-        var oldBallScreenX = Left + Canvas.GetLeft(BallEllipse);
-        var oldBallScreenY = Top + Canvas.GetTop(BallEllipse);
+        // A module-count resize records its screen-space anchor before changing
+        // Height. Use that saved position instead of a possibly half-updated
+        // window origin during WPF's deferred layout pass.
+        var oldBallScreenX = _hasPendingModuleResizeAnchor
+            ? _moduleResizeAnchorX
+            : Left + Canvas.GetLeft(BallEllipse);
+        var oldBallScreenY = _hasPendingModuleResizeAnchor
+            ? _moduleResizeAnchorY
+            : Top + Canvas.GetTop(BallEllipse);
 
         PanelBorder.Width = Math.Max(200, ActualWidth - BallSlot - PanelMargin);
         PanelBorder.Height = Math.Max(140, ActualHeight - PanelMargin * 2);
@@ -504,6 +559,7 @@ public partial class MainWindow : Window
         {
             if (e.HeightChanged && _isExpanded && PanelBorder.Visibility == Visibility.Visible)
                 _isUserSizingHeight = true;
+            _hasPendingModuleResizeAnchor = false;
             return;
         }
 
@@ -511,8 +567,15 @@ public partial class MainWindow : Window
         // clamping, DPI change, ...), shift the window origin by the same delta so
         // the ball's screen position - and therefore the next collapse position -
         // stays put instead of drifting/jumping.
+        BeginAnimation(LeftProperty, null);
+        BeginAnimation(TopProperty, null);
         Left += oldBallScreenX - (Left + Canvas.GetLeft(BallEllipse));
         Top += oldBallScreenY - (Top + Canvas.GetTop(BallEllipse));
+        if (_hasPendingModuleResizeAnchor)
+        {
+            _hasPendingModuleResizeAnchor = false;
+            KeepFloatingBallWithinWorkArea();
+        }
     }
 
     private void PositionToRightEdge()
@@ -677,16 +740,12 @@ public partial class MainWindow : Window
         var targetHeight = Math.Max(MinHeight, CalcExpandedHeight(_moduleManager.Modules.Count(module => module.IsEnabled)));
         if (Math.Abs(targetHeight - Height) < 1) return;
 
-        var ballScreenY = GetBallScreenY();
         var workArea = GetBallWorkArea();
         targetHeight = Math.Min(targetHeight, Math.Max(MinHeight, workArea.Bottom - workArea.Top));
-        var difference = targetHeight - Height;
-        var desiredTop = _isBottomSide ? Top - difference : Top;
-        Top = Math.Clamp(desiredTop, workArea.Top, Math.Max(workArea.Top, workArea.Bottom - targetHeight));
+        _moduleResizeAnchorX = GetBallScreenX();
+        _moduleResizeAnchorY = GetBallScreenY();
+        _hasPendingModuleResizeAnchor = true;
         Height = targetHeight;
-        PanelBorder.Height = targetHeight - PanelMargin * 2;
-        Canvas.SetTop(BallEllipse, ballScreenY - Top);
-        SyncBallGlow();
     }
 
     private void HoverTimer_Tick(object? sender, EventArgs e)
@@ -788,21 +847,15 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!BallEllipse.CaptureMouse()) return;
         _isMouseDown = true;
 
         _dragStartScreen = PointToScreen(e.GetPosition(this));
-
-        if (_isExpanded)
-        {
-            _restorePinnedAfterDrag = _settings.Current.AlwaysShowPanel;
-            CollapsePanel(immediate: true, force: _settings.Current.AlwaysShowPanel);
-        }
-
+        _restorePinnedAfterDrag = false;
         _dragStartBallScreenX = GetBallScreenX();
         _dragStartBallScreenY = GetBallScreenY();
         _isDragging = false;
         _dragStarted = false;
-        BallEllipse.CaptureMouse();
     }
 
     private void Ball_MouseMove(object sender, MouseEventArgs e)
@@ -817,6 +870,10 @@ public partial class MainWindow : Window
         {
             _dragStarted = true;
             _isDragging = true;
+            _restorePinnedAfterDrag = _isExpanded && _settings.Current.AlwaysShowPanel;
+            _isHoveringBall = false;
+            if (_isExpanded)
+                CollapsePanel(immediate: true, force: true);
         }
 
         if (_isDragging)
@@ -854,23 +911,32 @@ public partial class MainWindow : Window
 
     private void Ball_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        _isMouseDown = false;
+        CompleteBallPointerInteraction();
+    }
 
-        if (_isDragging)
-        {
-            _isDragging = false;
-            _dragStarted = false;
+    private void Ball_MouseCaptureLost(object sender, MouseEventArgs e)
+    {
+        if (_isMouseDown || _isDragging)
+            CompleteBallPointerInteraction(releaseCapture: false);
+    }
+
+    private void CompleteBallPointerInteraction(bool releaseCapture = true)
+    {
+        var wasDragging = _isDragging;
+        _isMouseDown = false;
+        _isDragging = false;
+        _dragStarted = false;
+
+        if (releaseCapture && BallEllipse.IsMouseCaptured)
             BallEllipse.ReleaseMouseCapture();
-            RefreshBallSideFromPosition();
-            if (_settings.Current.SnapToEdge)
-            {
-                SnapToNearestEdge(RestorePinnedPanelAfterDrag);
-            }
-            else
-            {
-                RestorePinnedPanelAfterDrag();
-            }
-        }
+
+        if (!wasDragging) return;
+
+        RefreshBallSideFromPosition();
+        if (_settings.Current.SnapToEdge)
+            SnapToNearestEdge(RestorePinnedPanelAfterDrag);
+        else
+            RestorePinnedPanelAfterDrag();
     }
 
     private void RestorePinnedPanelAfterDrag()

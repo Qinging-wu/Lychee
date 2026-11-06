@@ -1,5 +1,7 @@
 # <img src="Assets/icon-thumb-64.png" alt="Lychee" width="56" height="56" style="vertical-align: middle; margin-top: 8px"> Lychee
 
+![Lychee anime-inspired cover illustration](./Assets/Cover.png)
+
 English | [简体中文](./README.zh-CN.md)
 
 A tiny always-on-top floating ball for Windows that shows CPU, memory, network speed, public IP, and latency at a glance. Hover to expand the info panel; move away to collapse. Built with .NET 8 WPF + WinForms. No installer, no background services.

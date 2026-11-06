@@ -1,5 +1,7 @@
 # <img src="Assets/icon-thumb-64.png" alt="Lychee" width="56" height="56" style="vertical-align: middle; margin-top: 8px"> Lychee
 
+![Lychee 二次元印象封面](./Assets/Cover.png)
+
 [English](./README.md) | 简体中文
 
 一个极小的 Windows 桌面悬浮球，置顶显示 CPU、内存、网速、公网 IP 和延迟。鼠标悬停展开信息面板，移开自动收起。基于 .NET 8 WPF + WinForms，无需安装、无后台服务。

@@ -51,6 +51,12 @@ curl -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 
 
 每个模块都可以在设置中单独开关。
 
+### 音频频谱预览
+
+面板展开时会显示 16 段实时频谱：
+
+![Lychee 音频频谱效果预览](./Assets/Audio_Meter.gif)
+
 ### 悬浮球与面板
 
 - 可选择内置悬浮球样式，或导入 PNG、JPEG、BMP 图片及动态 GIF。

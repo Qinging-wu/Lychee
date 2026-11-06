@@ -51,6 +51,12 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 
 Each module can be toggled on/off individually in Settings.
 
+### Audio meter preview
+
+The expanded panel displays a live 16-band spectrum:
+
+![Lychee Audio meter live spectrum preview](./Assets/Audio_Meter.gif)
+
 ### Floating ball and panel
 
 - Choose a built-in floating ball style or import a PNG, JPEG, BMP, or animated GIF.

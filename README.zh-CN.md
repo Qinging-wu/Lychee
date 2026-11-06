@@ -44,7 +44,7 @@ curl -fsSL https://raw.githubusercontent.com/Qinging-wu/Lychee/main/install.ps1 
 - **💻 CPU 使用率** — 通过 `GetSystemTimes` 采集全核利用率，每秒刷新
 - **🧠 内存** — 通过 `GlobalMemoryStatusEx` 获取 RAM 占用和页面文件统计
 - **⏱️ 网络延迟** — 每 5 秒 ping 223.5.5.5 / 1.1.1.1 / 8.8.8.8，取最优值
-- **🔊 音频频谱** — 显示默认输出设备总体电平、百分比和 dBFS；面板展开时绘制 16 段实时频谱、峰值标记与粒子
+- **🔊 音频频谱**（v2.0.0）— 显示默认输出设备总体电平、百分比和 dBFS；面板展开时绘制 16 段实时频谱、峰值标记与粒子
 - **🖼️ 帧性能**（v1.2.0）— 两种模式：
   - *桌面输出* — 通过 `DwmGetCompositionTimingInfo` 采样 DWM 合成帧率，显示 FPS + 显示刷新率
   - *前台应用* — 启动 PresentMon 2.5.1 采集进程级帧呈现，报告当前 FPS、60 秒平均、1% Low 和帧范围。需要**管理员权限**或加入 `Performance Log Users` 组

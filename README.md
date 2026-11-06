@@ -44,7 +44,7 @@ To close, click **✕** on the panel or right-click the tray icon → Quit.
 - **💻 CPU usage** — per-core utilization via `GetSystemTimes`, refreshes every second
 - **🧠 Memory** — RAM and page file stats via `GlobalMemoryStatusEx`
 - **⏱️ Network latency** — pings 223.5.5.5 / 1.1.1.1 / 8.8.8.8 every 5s, reports the best RTT
-- **🔊 Audio meter** — shows output level percentage and dBFS; while the panel is open, renders a 16-band live spectrum with peak holds and particles
+- **🔊 Audio meter** (v2.0.0) — shows output level percentage and dBFS; while the panel is open, renders a 16-band live spectrum with peak holds and particles
 - **🖼️ Frame Performance** (v1.2.0) — two modes:
   - *Desktop output* — samples DWM composition cadence via `DwmGetCompositionTimingInfo`, shows FPS + display refresh rate
   - *Foreground app* — launches PresentMon 2.5.1 to capture per-process frame presents, reports current FPS, 60s average, 1% low, and frame range. Requires **administrator privileges** or membership in `Performance Log Users` group
